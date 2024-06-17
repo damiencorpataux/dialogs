@@ -3,8 +3,8 @@
 {% block content %}
 
 <h3>
-    <i class="text-secondary pe-auto me-2" data-feather="voicemail"></i>
-    Scripts
+    <i class="text-secondary pe-auto me-2" data-feather="film"></i>
+    Transcripts
 </h3>
 <ul class="list-unstyled">
     {% for script_name in scripts %}
@@ -20,19 +20,21 @@
 <style>
     #drop-zone {
         border-radius: 10px;
-        width: 100%;
         border: 2px dashed var(--bs-secondary);
         padding: 30px;
         text-align: center;
         cursor: pointer;
         transition: all 0.3s ease-in-out;
     }
+    #drop-zone:hover {
+        border-color: var(--bs-link-color);
+    }
     #drop-zone.dragover {
         border-color: var(--brand);
     }
 </style>
 <div>
-    <div class="text-center text-muted ms-4" id="drop-zone">
+    <div class="text-center text-muted mx-4" id="drop-zone">
         Drop video files here or click to upload
         <div class="progress mt-3">
             <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
@@ -104,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
             progressBar.style.width = '0%';
             progressBar.textContent = '0%';
             progressBar.setAttribute('aria-valuenow', '0');
+            location.reload();
         };
 
         xhr.onerror = () => {
