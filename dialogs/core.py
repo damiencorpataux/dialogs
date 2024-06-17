@@ -3,6 +3,7 @@ import ffmpeg
 import yaml
 import json
 import glob
+import shutil
 import os
 
 with open('./config.yaml', 'r') as file:
@@ -13,7 +14,7 @@ class Script:
     A Movie Script.
     """
 
-    base_path = os.path.join(config['backend']['workdir'], 'userdata', 'scripts')
+    scripts_path = os.path.join(config['backend']['workdir'], 'userdata', 'scripts')
 
     def __init__(self, name) -> None:
         self.name = name
@@ -22,7 +23,7 @@ class Script:
 
     @property
     def path(self):
-        return os.path.join(self.base_path, self.name)
+        return os.path.join(self.scripts_path, self.name)
 
     @property
     def video_filename(self):
@@ -44,15 +45,32 @@ class Script:
     def list(cls):
         return [
             os.path.basename(os.path.normpath(path))
-            for path in glob.glob(os.path.join(cls.base_path, '*'))]
+            for path in glob.glob(os.path.join(cls.scripts_path, '*'))]  # FIXME: Must only return directories
 
     @classmethod
-    def ingest(cls, name, video_filename):
+    def delete(cls, name):
+        shutil.rmtree(Script(name).path)
+        return name
+
+    @classmethod
+    def ingest(cls, video_filename, name=None, replace=False):
+        if not name:
+            name = os.path.basename(os.path.splitext(video_filename)[0])
+            print(f'No name provided, using name "{name}"')
+        if name in cls.list():
+            if replace:
+                Script.delete(name)
+            else:
+                raise ValueError(f'Script with name "{name}" already exists')
         print('Ingesting...', name, video_filename)
-        script = Script(name)
-        with open(video_filename, 'rb') as f:
-            script.upload_video(f.read())
-        script.extract_transcript()
+        try:
+            script = Script(name)
+            with open(video_filename, 'rb') as f:
+                script.upload_video(f.read())
+            script.extract_transcript()
+        except Exception as e:
+            Script.delete(name)  # Clean aborted work
+            raise
 
     def upload_video(self, video_binary):
         print('Writing...', len(video_binary))
@@ -66,7 +84,7 @@ class Script:
                 .input(tmp_filename)
                 .output(self.video_filename))
         ffmpeg_process.execute()
-        os.unlink(tmp_filename)
+        os.remove(tmp_filename)
 
     def extract_transcript(self, whisper_model='large'):
         print('Preparing...')
@@ -87,6 +105,17 @@ class Script:
         model = whisper.load_model(whisper_model)
         print('Transcribing...', whisper_model)
         transcript = model.transcribe(self.audio_filename)
+        print('Stripping transcript...')
+        transcript = [
+            {
+                "id": segment["id"],
+                "start": segment["start"],
+                "end": segment["end"],
+                "text": segment["text"]
+            }
+            for segment in transcript.get("segments", [])
+        ]
+        print('Writing stripped transcript...')
         with open(self.transcript_filename, 'w') as file:
             json.dump(transcript, file)
 

@@ -2,29 +2,36 @@
 
 {% block content %}
 
-<div class="d-flex flex-row gap-5">
+<h2>{{ script.name }}</h2>
+<!--
+<p>
+    <strong>Metadata:</strong> {{ script.__dict__ }}
+</p>
+ -->
+<hr class="invisible">
+<div class="d-flex flex-column flex-md-row gap-3 gap-md-5">
     <div>
-        <h2 class="mb-5">{{ script.name }}</h2>
+        <strong>Time elapsed:</strong> <span id="time">-</span>
+        <br>
         <video id="player" width="320" height="240" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
         </video>
-        <hr>
-        <h3>Metadata</h3>
-        Time:
-        <span id="time">-</span>
-        <p>
-            {{ script.__dict__ }}    
-        </p>
     </div>
-    <div>
+    <div class="flex-grow-1">
         <h3>Transcript</h3>
         <div id="transcript">
-        </div>        
+        </div>
     </div>
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+        get_transcript().then(transcript => display(transcript));
+    }
+
     async function get_transcript() {
         const script_url = "{{ url_for('api_script_transcript', script_id=script.name) }}";
         const response = await fetch(script_url);
@@ -32,9 +39,9 @@
         return transcript;
     }
 
-    function load(transcript) {
+    function display(transcript) {
         let html = `
-            <table __contenteditable class="table table-stripped table-hover">
+            <table __contenteditable class="table table-stripped table-hover mb-0">
                 <thead>
                     <tr>
                         <th>id</th>
@@ -44,7 +51,7 @@
                     </tr>
                 </thead>
             `;
-        for (const segment of transcript.segments) {
+        for (const segment of transcript) {
             html += `
                 <tr data-id="${segment.id}">
                     <td class="text-muted">${segment.id}</td>
@@ -58,7 +65,7 @@
 
         const segments_by_id = {};
         const segments_by_start = {};
-        for (const segment of transcript.segments) {
+        for (const segment of transcript) {
             segments_by_id[segment.id] = segment;
             segments_by_start[segment.start] = segment;
         }
@@ -72,45 +79,38 @@
         }
 
         // FIXME: Store these globally for use in the timeupdate event listener
-        window.segments_by_start = segments_by_start;
+        window.segments_by_id = segments_by_id;
+        window.segments_dom_rows = document.querySelectorAll('#transcript tbody tr');
     }
-    get_transcript().then(transcript => load(transcript));
 
     // Sync segments highlighting with player time
     document.getElementById('player').addEventListener('timeupdate', function() {
-        document.getElementById('time').innerText = this.currentTime;
 
-        let active_segment = null;
-        for (const start in window.segments_by_start) {
-            const segment = window.segments_by_start[start];
-            if (this.currentTime >= segment.start && this.currentTime < segment.end) {
-                active_segment = segment;
-                break;
-            }
-        }
+        document.getElementById('time').innerText = this.currentTime.toFixed(2);
 
-        const rows = document.querySelectorAll('#transcript tr');
-        rows.forEach(row => {
-            if (active_segment && row.getAttribute('data-id') == active_segment.id) {
+        window.segments_dom_rows.forEach(row => {
+            const segmentId = row.getAttribute('data-id');
+            const segment = window.segments_by_id[segmentId];
+
+            if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
                 if (!row.classList.contains('table-active')) {
-                    // Scroll to segment if not already scrolled
+                    // Auto-scroll to segment if not already scrolled
                     row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
                 }
                 row.classList.add('table-active');
             } else {
                 row.classList.remove('table-active');
             }
-        });    
+        });
     });
 
     // Resize table to fit page height
     function adjustTableHeight() {
-        console.log('adjust')
         const transcriptElement = document.getElementById('transcript');
         const topPosition = transcriptElement.getBoundingClientRect().top;
         const viewportHeight = window.innerHeight;
         transcriptElement.style.overflow = 'scroll';
-        transcriptElement.style.height = (viewportHeight - topPosition - 50) + 'px';
+        transcriptElement.style.height = (viewportHeight - topPosition - 0) + 'px';
     }
     document.addEventListener('DOMContentLoaded', adjustTableHeight);
     window.addEventListener('resize', adjustTableHeight);
