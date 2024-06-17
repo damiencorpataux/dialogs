@@ -47,9 +47,9 @@
         for (const segment of transcript.segments) {
             html += `
                 <tr data-id="${segment.id}">
-                    <td>${segment.id}</td>
-                    <td>${segment.start}</td>
-                    <td>${segment.end}</td>
+                    <td class="text-muted">${segment.id}</td>
+                    <td>${segment.start.toFixed(2)}</td>
+                    <td>${segment.end.toFixed(2)}</td>
                     <td>${segment.text}</td>
                 </tr>`;
         }
