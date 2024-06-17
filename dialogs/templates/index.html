@@ -2,10 +2,119 @@
 
 {% block content %}
 
-<ul>
+<h3>
+    <i class="text-secondary pe-auto me-2" data-feather="voicemail"></i>
+    Scripts
+</h3>
+<ul class="list-unstyled">
     {% for script_name in scripts %}
-    <li><a href="{{url_for('ui_script_edit', script_name=script_name)}}">{{script_name}}</a></li>
+    <li class="ms-4 mb-2"><a href="{{url_for('ui_script_edit', script_name=script_name)}}">{{script_name}}</a></li>
     {% endfor %}
 </ul>
+
+<!-- Drag and drop area -->
+<h3 class="mt-5">
+    <i class="text-secondary pe-auto me-2" data-feather="upload"></i>
+    Upload new video for transcript
+</h3>
+<style>
+    #drop-zone {
+        border-radius: 10px;
+        width: 100%;
+        border: 2px dashed var(--bs-secondary);
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+    }
+    #drop-zone.dragover {
+        border-color: var(--brand);
+    }
+</style>
+<div>
+    <div class="text-center text-muted ms-4" id="drop-zone">
+        Drop video files here or click to upload
+        <div class="progress mt-3">
+            <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+    </div>
+    <input type="file" id="file-input" accept="video/*" class="d-none">
+</div>
+
+<script>
+// Handle drop zone
+document.addEventListener('DOMContentLoaded', function () {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const progressBar = document.getElementById('progress-bar');
+
+    // Handle click: triger file selector and upload file
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+        const files = fileInput.files;
+        if (files.length && files[0].type.startsWith('video/')) {
+            uploadFile(files[0]);
+        } else {
+            alert('Please upload a valid video file.');
+        }
+    });
+
+    // Handle drop file: upload file
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover')
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length && files[0].type.startsWith('video/')) {
+            uploadFile(files[0]);
+        } else {
+            alert('Please upload a valid video file.');
+        }
+    });
+
+    // FIXME: Prevent default drag and drop behavior on the entire document
+    document.addEventListener('dragover', (e) => {e.preventDefault});
+    document.addEventListener('drop', (e) => {e.preventDefault});
+
+    // Handle file upload using xhr, with progress bar
+    function uploadFile(file) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{{ url_for("api_script_video_post") }}', true);
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressBar.style.width = percentComplete + '%';
+                progressBar.textContent = Math.round(percentComplete) + '%';
+                progressBar.setAttribute('aria-valuenow', Math.round(percentComplete));
+            }
+        });
+
+        xhr.onload = () => {
+            alert(xhr.responseText);
+            // if (xhr.status === 200) {
+            // } else {
+            // }
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressBar.setAttribute('aria-valuenow', '0');
+        };
+
+        xhr.onerror = () => {
+            alert('Could not upload file to server');
+        };
+
+        const formData = new FormData();
+        formData.append('file', file);
+        xhr.send(formData);
+    }
+});
+</script>
 
 {% endblock %}
