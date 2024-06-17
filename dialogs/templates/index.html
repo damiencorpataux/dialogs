@@ -8,11 +8,16 @@
 </h3>
 <ul class="list-unstyled">
     {% for script_name in scripts %}
-    <li class="ms-4 mb-2"><a href="{{url_for('ui_script_edit', script_name=script_name)}}">{{script_name}}</a></li>
+    <li class="ms-4">
+        <a href="{{url_for('ui_script_edit', script_name=script_name)}}">{{script_name}}</a>
+        <button class="delete-btn btn btn-sm" data-script-name="{{script_name}}">
+            <i class="text-danger" width="16" data-feather="trash-2"></i>
+        </button>
+    </li>
     {% endfor %}
 </ul>
 
-<!-- Drag and drop area -->
+<!-- Drag and drop area for upload -->
 <h3 class="mt-5">
     <i class="text-secondary pe-auto me-2" data-feather="upload"></i>
     Upload new video for transcript
@@ -50,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const fileInput = document.getElementById('file-input');
     const progressBar = document.getElementById('progress-bar');
 
-    // Handle click: triger file selector and upload file
+    // Handle click: trigger file selector and upload file
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
         const files = fileInput.files;
@@ -80,18 +85,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // FIXME: Prevent default drag and drop behavior on the entire document
-    document.addEventListener('dragover', (e) => {e.preventDefault});
-    document.addEventListener('drop', (e) => {e.preventDefault});
+    // Prevent default drag and drop behavior on the entire document
+    document.addEventListener('dragover', (e) => { e.preventDefault(); });
+    document.addEventListener('drop', (e) => { e.preventDefault(); });
 
     // Handle file upload using xhr, with progress bar
     function uploadFile(file) {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '{{ url_for("api_script_video_post") }}', true);
+        xhr.open('POST', '{{ url_for("api_script_post") }}', true);
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
-                const percentComplete = (e.loaded / e.total) * 100;
+                const percentComplete = Math.min(90, e.loaded / e.total * 100);  // FIXME: While celery is not implemented in flask
                 progressBar.style.width = percentComplete + '%';
                 progressBar.textContent = Math.round(percentComplete) + '%';
                 progressBar.setAttribute('aria-valuenow', Math.round(percentComplete));
@@ -100,9 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         xhr.onload = () => {
             alert(xhr.responseText);
-            // if (xhr.status === 200) {
-            // } else {
-            // }
             progressBar.style.width = '0%';
             progressBar.textContent = '0%';
             progressBar.setAttribute('aria-valuenow', '0');
@@ -116,6 +118,31 @@ document.addEventListener('DOMContentLoaded', function () {
         const formData = new FormData();
         formData.append('file', file);
         xhr.send(formData);
+    }
+});
+
+// Handle delete button click
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const scriptName = this.getAttribute('data-script-name');
+            if (confirm(`${scriptName}\n\nAre you sure to delete ?`)) {
+                deleteTranscript(scriptName);
+            }
+        });
+    });
+
+    function deleteTranscript(scriptName) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', `{{ url_for("api_script_delete", script_id="") }}/${scriptName}`, true);
+        xhr.onload = () => {
+            alert(xhr.responseText);
+            location.reload();
+        };
+        xhr.onerror = () => {
+            alert('Could not delete transcript');
+        };
+        xhr.send();
     }
 });
 </script>

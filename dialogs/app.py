@@ -18,16 +18,9 @@ def ui_script_edit(script_name):
 def api_script():
     return core.Script.list()
 
-@app.route("/api/script/<script_id>/video")
-def api_script_video(script_id):
-    script = core.Script(script_id)
-    return flask.send_from_directory(
-        os.path.dirname(script.video_filename),
-        os.path.basename(script.video_filename))
-
 UPLOAD_FOLDER = '/tmp'  # FIXME
 @app.route('/api/script', methods=['POST'])
-def api_script_video_post():
+def api_script_post():
     if 'file' not in flask.request.files:
         return flask.jsonify({'error': 'No file part'}), 400
 
@@ -36,15 +29,33 @@ def api_script_video_post():
         return flask.jsonify({'error': 'No selected file'}), 400
 
     if file and file.mimetype.startswith('video/'):
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        print('XXX', file_path)
-        with open(file_path, 'wb') as f:
+        tmp_file = os.path.join(UPLOAD_FOLDER, file.filename)
+        with open(tmp_file, 'wb') as f:
             for chunk in file.stream:
                 f.write(chunk)
-        os.remove(file_path)  # TODO: Launch ingest task using celery.
+        try:
+            core.Script.ingest(tmp_file)  # TODO: Launch ingest task using celery.
+            os.remove(tmp_file)
+        except Exception as e:
+            return flask.jsonify({'error': str(e)}), 500
         return flask.jsonify({'message': 'File successfully uploaded'}), 200
     else:
         return flask.jsonify({'error': 'Invalid file type'}), 400
+
+@app.route('/api/script/<script_id>', methods=['DELETE'])
+def api_script_delete(script_id):
+    try:
+        core.Script.delete(script_id)
+        return flask.jsonify({'message': f'Script "{script_id}" successfully deleted'}), 200
+    except Exception as e:
+        return flask.jsonify({'error': str(e)}), 500
+
+@app.route("/api/script/<script_id>/video")
+def api_script_video(script_id):
+    script = core.Script(script_id)
+    return flask.send_from_directory(
+        os.path.dirname(script.video_filename),
+        os.path.basename(script.video_filename))
 
 @app.route("/api/script/<script_id>/transcript")
 def api_script_transcript(script_id):
@@ -53,7 +64,7 @@ def api_script_transcript(script_id):
         os.path.dirname(script.transcript_filename),
         os.path.basename(script.transcript_filename))
 
-@app.route("/api/script/<string:script_id>/transcript", methods=["POST"])
+@app.route("/api/script/<script_id>/transcript", methods=["POST"])
 def api_script_transcript_post(script_id):
     script = core.Script(script_id)
 
