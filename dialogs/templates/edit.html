@@ -2,21 +2,25 @@
 
 {% block content %}
 
-<h1>{{ script.name }}</h1>
-
-{{ script.__dict__ }}
-
 <div class="d-flex flex-row gap-5">
     <div>
+        <h2 class="mb-5">{{ script.name }}</h2>
         <video id="player" width="320" height="240" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
         </video>
-        <div id="time"></div>
+        <hr>
+        <h3>Metadata</h3>
+        Time:
+        <span id="time">-</span>
+        <p>
+            {{ script.__dict__ }}    
+        </p>
     </div>
     <div>
-        <p id="transcript">
-        </p>        
+        <h3>Transcript</h3>
+        <div id="transcript">
+        </div>        
     </div>
 </div>
 
@@ -79,7 +83,7 @@
         let active_segment = null;
         for (const start in window.segments_by_start) {
             const segment = window.segments_by_start[start];
-            if (this.currentTime >= segment.start && this.currentTime <= segment.end) {
+            if (this.currentTime >= segment.start && this.currentTime < segment.end) {
                 active_segment = segment;
                 break;
             }
@@ -88,12 +92,28 @@
         const rows = document.querySelectorAll('#transcript tr');
         rows.forEach(row => {
             if (active_segment && row.getAttribute('data-id') == active_segment.id) {
+                if (!row.classList.contains('table-active')) {
+                    // Scroll to segment if not already scrolled
+                    row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                }
                 row.classList.add('table-active');
             } else {
                 row.classList.remove('table-active');
             }
         });    
     });
+
+    // Resize table to fit page height
+    function adjustTableHeight() {
+        console.log('adjust')
+        const transcriptElement = document.getElementById('transcript');
+        const topPosition = transcriptElement.getBoundingClientRect().top;
+        const viewportHeight = window.innerHeight;
+        transcriptElement.style.overflow = 'scroll';
+        transcriptElement.style.height = (viewportHeight - topPosition - 50) + 'px';
+    }
+    document.addEventListener('DOMContentLoaded', adjustTableHeight);
+    window.addEventListener('resize', adjustTableHeight);
 </script>
 
 {% endblock %}
