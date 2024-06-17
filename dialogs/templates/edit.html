@@ -1,0 +1,99 @@
+{% extends "html" %}
+
+{% block content %}
+
+<h1>{{ script.name }}</h1>
+
+{{ script.__dict__ }}
+
+<div class="d-flex flex-row gap-5">
+    <div>
+        <video id="player" width="320" height="240" controls>
+            <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div id="time"></div>
+    </div>
+    <div>
+        <p id="transcript">
+        </p>        
+    </div>
+</div>
+
+<script>
+    async function get_transcript() {
+        const script_url = "{{ url_for('api_script_transcript', script_id=script.name) }}";
+        const response = await fetch(script_url);
+        const transcript = await response.json();
+        return transcript;
+    }
+
+    function load(transcript) {
+        let html = `
+            <table __contenteditable class="table table-stripped table-hover">
+                <thead>
+                    <tr>
+                        <th>id</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Text</th>
+                    </tr>
+                </thead>
+            `;
+        for (const segment of transcript.segments) {
+            html += `
+                <tr data-id="${segment.id}">
+                    <td>${segment.id}</td>
+                    <td>${segment.start}</td>
+                    <td>${segment.end}</td>
+                    <td>${segment.text}</td>
+                </tr>`;
+        }
+        html += '</table>';
+        document.getElementById('transcript').innerHTML = html;
+
+        const segments_by_id = {};
+        const segments_by_start = {};
+        for (const segment of transcript.segments) {
+            segments_by_id[segment.id] = segment;
+            segments_by_start[segment.start] = segment;
+        }
+
+        for (const span of document.querySelectorAll('#transcript [data-id]')) {
+            span.style.cursor = 'pointer';
+            span.addEventListener('click', e => {
+                const segment = segments_by_id[span.getAttribute('data-id')];
+                document.getElementById('player').currentTime = segment.start;
+            });
+        }
+
+        // FIXME: Store these globally for use in the timeupdate event listener
+        window.segments_by_start = segments_by_start;
+    }
+    get_transcript().then(transcript => load(transcript));
+
+    // Sync segments highlighting with player time
+    document.getElementById('player').addEventListener('timeupdate', function() {
+        document.getElementById('time').innerText = this.currentTime;
+
+        let active_segment = null;
+        for (const start in window.segments_by_start) {
+            const segment = window.segments_by_start[start];
+            if (this.currentTime >= segment.start && this.currentTime <= segment.end) {
+                active_segment = segment;
+                break;
+            }
+        }
+
+        const rows = document.querySelectorAll('#transcript tr');
+        rows.forEach(row => {
+            if (active_segment && row.getAttribute('data-id') == active_segment.id) {
+                row.classList.add('table-active');
+            } else {
+                row.classList.remove('table-active');
+            }
+        });    
+    });
+</script>
+
+{% endblock %}
