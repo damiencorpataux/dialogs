@@ -7,9 +7,9 @@
         <i class="text-secondary pe-auto me-2" data-feather="voicemail"></i>
         {{ script.name }}
     </h2>
-    <div class="d-inline small text-secondary">
+    <span class="small text-secondary">
         &nbsp;&mdash; <strong>Metadata:</strong> {{ script.__dict__ }}
-    </div>
+    </span>
 </div>
 <div class="d-flex flex-column flex-md-row gap-3 gap-md-5">
     <div>
@@ -30,10 +30,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', init);
 
+    // Initialize UX
     function init() {
         get_transcript().then(transcript => display(transcript));
     }
 
+    // Fetch transcript from server
     async function get_transcript() {
         const script_url = "{{ url_for('api_script_transcript', script_id=script.name) }}";
         const response = await fetch(script_url);
@@ -41,6 +43,21 @@
         return transcript;
     }
 
+    // Post transcript on server
+    async function post_transcript(new_transcript) {
+        const script_url = "{{ url_for('api_script_transcript_post', script_id=script.name) }}";
+        const response = await fetch(script_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(new_transcript)
+        });
+        const transcript = await response.json();
+        return transcript;
+    }
+
+    // Populate #transcript with a table containing the given transcript
     function display(transcript) {
         let html = `
             <table __contenteditable class="table table-stripped table-hover mb-0">
@@ -56,22 +73,22 @@
         for (const segment of transcript) {
             html += `
                 <tr data-id="${segment.id}">
-                    <td class="text-muted">${segment.id}</td>
-                    <td>${segment.start.toFixed(2)}</td>
-                    <td>${segment.end.toFixed(2)}</td>
-                    <td>${segment.text}</td>
+                    <td data-type="id" class="text-muted">${segment.id}</td>
+                    <td data-type="start">${segment.start.toFixed(3)}</td>
+                    <td data-type="end">${segment.end.toFixed(3)}</td>
+                    <td data-type="text">${segment.text}</td>
                 </tr>`;
         }
         html += '</table>';
+        // FIXME: Remove event handlers in existing content (or is it not necessary) ?
         document.getElementById('transcript').innerHTML = html;
 
         const segments_by_id = {};
-        const segments_by_start = {};
         for (const segment of transcript) {
             segments_by_id[segment.id] = segment;
-            segments_by_start[segment.start] = segment;
         }
 
+        // Handle seek video to segment start time
         for (const span of document.querySelectorAll('#transcript [data-id]')) {
             span.style.cursor = 'pointer';
             span.addEventListener('click', e => {
@@ -79,16 +96,17 @@
                 document.getElementById('player').currentTime = segment.start;
             });
         }
-
         // FIXME: Store these globally for use in the timeupdate event listener
         window.segments_by_id = segments_by_id;
         window.segments_dom_rows = document.querySelectorAll('#transcript tbody tr');
+
+        setup_editing();
     }
 
     // Sync segments highlighting with player time
     document.getElementById('player').addEventListener('timeupdate', function() {
 
-        document.getElementById('time').innerText = this.currentTime.toFixed(2);
+        document.getElementById('time').innerText = this.currentTime.toFixed(3);
 
         window.segments_dom_rows.forEach(row => {
             const segmentId = row.getAttribute('data-id');
@@ -116,6 +134,53 @@
     }
     document.addEventListener('DOMContentLoaded', adjustTableHeight);
     window.addEventListener('resize', adjustTableHeight);
+
+    // Make segments editable
+    function setup_editing() {
+
+        // Generate transcript from table
+        function transcript_from_table() {
+            transcript = [];
+            for (const row of window.segments_dom_rows) {
+                transcript.push({
+                    id: parseFloat(row.querySelector('[data-type=id]').innerText),
+                    start: parseFloat(row.querySelector('[data-type=start]').innerText),
+                    end: parseFloat(row.querySelector('[data-type=end]').innerText),
+                    text: row.querySelector('[data-type=text]').innerText
+                });
+            }
+            return transcript;
+        }
+
+        for (const tr of window.segments_dom_rows) {
+            // Handle editing mode toggle
+            tr.addEventListener('dblclick', function() {
+                tr.setAttribute('contenteditable', true);
+                tr.focus();
+            });
+            tr.addEventListener('blur', function() {
+                // Check for modifications, prompt user and save
+                const save = confirm('Do you want to save changes ?');
+                if (save) {
+                    const actual_transcript = transcript_from_table();
+                    post_transcript(actual_transcript).then(transcript => display(transcript));
+                }
+                tr.setAttribute('contenteditable', false);
+            });
+
+            // Handle keypresses
+            tr.addEventListener('keydown', function(e) {
+                // End editing on Escape
+                if (e.key == 'Escape') {
+                    tr.blur();
+                }
+                // End editing on Enter
+                if (e.key == 'Enter') {
+                    tr.blur();
+                }
+            });
+        }
+    }
 </script>
 
 {% endblock %}

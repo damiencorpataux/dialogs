@@ -1,6 +1,7 @@
 import core
 import flask
 import yaml
+import json
 import os
 
 app = flask.Flask(__name__)
@@ -31,11 +32,29 @@ def api_script_transcript(script_id):
         os.path.dirname(script.transcript_filename),
         os.path.basename(script.transcript_filename))
 
-# @app.route("/api/project/<script_id>/video", methods=["POST"])
-# def api_script_video_upload(script_id):
-#     # TODO: See ingestion using celery working in aeoe: https://bitbucket.org/damiencorpataux/unil-decanat-archive-search/src/f40f6c3d399905166338112e254e53bb09cd166c/app/api/app.py#lines-433
-#     return []
+@app.route("/api/script/<string:script_id>/transcript", methods=["POST"])
+def api_script_transcript_post(script_id):
+    script = core.Script(script_id)
 
+    if not flask.request.is_json:
+        return flask.jsonify({"error": "Request body must be JSON"}), 400
+
+    data = flask.request.get_json()
+
+    # TODO: Check if the data is a valid transcript
+    # if not core.validate_transcript(data):
+    #     return flask.jsonify({"error": "Invalid transcript data"}), 400
+
+    # Store the serialized data to disk with the given filename
+    transcript_json = json.dumps(data)
+    with open(script.transcript_filename, "w") as file:
+        file.write(transcript_json)
+
+    # Load the stored transcript from disk
+    with open(script.transcript_filename, "r") as file:
+        loaded_transcript = json.load(file)
+
+    return flask.jsonify(loaded_transcript)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9999, debug=True)
