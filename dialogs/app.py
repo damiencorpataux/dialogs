@@ -14,7 +14,7 @@ def ui():
 def ui_script_edit(script_name):
     return flask.render_template('edit.html', script=core.Script(script_name))
 
-@app.route("/api/script/")
+@app.route("/api/script")
 def api_script():
     return core.Script.list()
 
@@ -24,6 +24,27 @@ def api_script_video(script_id):
     return flask.send_from_directory(
         os.path.dirname(script.video_filename),
         os.path.basename(script.video_filename))
+
+UPLOAD_FOLDER = '/tmp'  # FIXME
+@app.route('/api/script', methods=['POST'])
+def api_script_video_post():
+    if 'file' not in flask.request.files:
+        return flask.jsonify({'error': 'No file part'}), 400
+
+    file = flask.request.files['file']
+    if file.filename == '':
+        return flask.jsonify({'error': 'No selected file'}), 400
+
+    if file and file.mimetype.startswith('video/'):
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        print('XXX', file_path)
+        with open(file_path, 'wb') as f:
+            for chunk in file.stream:
+                f.write(chunk)
+        os.remove(file_path)  # TODO: Launch ingest task using celery.
+        return flask.jsonify({'message': 'File successfully uploaded'}), 200
+    else:
+        return flask.jsonify({'error': 'Invalid file type'}), 400
 
 @app.route("/api/script/<script_id>/transcript")
 def api_script_transcript(script_id):
