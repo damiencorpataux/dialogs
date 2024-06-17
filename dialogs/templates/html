@@ -15,14 +15,14 @@
     </head>
     <body data-bs-theme="dark">
         <div class="container py-4 px-4">
-            <div class="d-flex flex-row gap-2 align-items-baseline __justify-content-between">
+            <div class="d-flex flex-row gap-3 align-items-baseline">
+                <i class="brand pe-auto" data-feather="mic" stroke-width="3" width="32" height="32" _style="position:relative; top: -3px; left:-3px"></i>
                 <h1>
-                    <i class="brand pe-auto" data-feather="mic" stroke-width="2" width="32" height="32" style="position:relative; top: -3px; left:-3px"></i>
                     Dialogs.
                 </h1>
-                <p class="text-muted">
+                <div class="small text-secondary ms-3">
                     Snip and snap.
-                </p>
+                </div>
             </div>
 
             <hr class="my-4">
