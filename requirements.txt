@@ -1,0 +1,6 @@
+openai-whisper
+python-ffmpeg
+pyyaml
+flask
+celery
+reddis

@@ -1,0 +1,11 @@
+{% extends "html" %}
+
+{% block content %}
+
+<ul>
+    {% for script_name in scripts %}
+    <li><a href="{{url_for('ui_script_edit', script_name=script_name)}}">{{script_name}}</a></li>
+    {% endfor %}
+</ul>
+
+{% endblock %}
