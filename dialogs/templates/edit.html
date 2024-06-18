@@ -2,7 +2,15 @@
 
 {% block content %}
 
-<div class="mb-3 mb-lg-4" style="max-height: 2.5rlh; overflow: scroll;">
+<style>
+@media (max-width: 992px) {
+    #script_header_title {
+        max-height: 2.5rlh;
+        overflow: scroll;
+    }
+}
+</style>
+<div id="script_header_title" class="mb-3 mb-lg-4">
     <h2 class="d-inline">
         <i class="text-secondary pe-auto me-2" data-feather="film"></i>
         {{ script.name }}
@@ -11,7 +19,7 @@
         &mdash;&nbsp;<strong>Metadata:</strong> {{ script.__dict__ }}
     </span>
 </div>
-<div class="d-flex flex-column flex-lg-row gap-3 gap-lg-5">
+<div class="d-flex flex-column flex-lg-row gap-1 gap-lg-5">
     <div class="col-lg-4 text-center">
         <video id="player" class="mw-100" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
@@ -38,7 +46,7 @@
                 user-select: none;  /* prevent selecting text while dragging */
             };
         </style>
-        <div id="transcript_timeline" class="mb-4"></div>
+        <div id="transcript_timeline" class="mb-2 mb-lg-4"></div>
         <div id="transcript_table"></div>
     </div>
 </div>
@@ -175,10 +183,10 @@
             segmentDiv.innerHTML = `<strong>${segment.id}</strong>`;
             segmentDiv.title = `Segment ${segment.id}\n🕓 ${format_time(segment.start)} ➜ ${format_time(segment.end)} s.\n\n${segment.text}\n `;
             segmentDiv.style.cursor = 'pointer';
-            segmentDiv.addEventListener('click', e => {
-                ui.player.currentTime = segment.start;
-            });
             transcript_timeline.appendChild(segmentDiv);
+            // Handle click on segment to set player currentTime (desktop & mobile)
+            segmentDiv.addEventListener('click', e => ui.player.currentTime = segment.start);
+            segmentDiv.addEventListener('touchstart', e => ui.player.currentTime = segment.start);
         });
         // Add the cursor line to the timeline
         const cursorLine = document.createElement('div');
@@ -286,26 +294,22 @@
     function setup_timeline_cursor_drag() {
         let isDragging = false;
         let cursorOffsetX = 0;
-        // Change cursor to pointer on hover
-        ui.transcript_timeline_cursor.addEventListener('mouseover', () => {
-            ui.transcript_timeline_cursor.style.cursor = 'grab';
-        });
-        ui.transcript_timeline_cursor.addEventListener('mouseout', () => {
-            ui.transcript_timeline_cursor.style.cursor = 'default';
-        });
-        // Handle dragging
-        ui.transcript_timeline_cursor.addEventListener('mousedown', e => {
+
+        // Function to handle the start of dragging
+        function startDragging(e) {
+            e.preventDefault();
             isDragging = true;
-            cursorOffsetX = e.offsetX;
             ui.transcript_timeline_cursor.style.cursor = 'grabbing';
-        });
-        // FIXME: Is it adding the same listeners to document
-        //        everytime the timeline is redrawn ?
-        document.addEventListener('mousemove', e => {
+        }
+
+        // Function to handle the dragging
+        function dragging(e) {
             if (isDragging) {
+                const clientX = (e.clientX !== undefined) ? e.clientX : e.touches[0].clientX;
+
                 // Calculate new position for cursor
                 const timelineRect = ui.transcript_timeline.getBoundingClientRect();
-                let newX = e.clientX - timelineRect.left - cursorOffsetX;
+                let newX = clientX - timelineRect.left;
                 newX = Math.max(0, Math.min(newX, timelineRect.width)); // Clamp within timeline bounds
 
                 // Update cursor position
@@ -317,16 +321,33 @@
                 ui.player_time_dom.innerText = format_time(newTime);
 
                 // Set player currentTime to the position of the cursor
-                const cursorX = parseFloat(ui.transcript_timeline_cursor.style.left);
-                const currentTime = (cursorX / timelineRect.width) * totalDuration;
-                ui.player.currentTime = currentTime;
+                ui.player.currentTime = newTime;
             }
-        });
-        document.addEventListener('mouseup', () => {
+        }
+
+        // Function to handle the end of dragging
+        function stopDragging() {
             if (isDragging) {
                 isDragging = false;
+                ui.transcript_timeline_cursor.style.cursor = 'grab';
             }
+        }
+
+        // Mouse events
+        ui.transcript_timeline_cursor.addEventListener('mouseover', () => {
+            ui.transcript_timeline_cursor.style.cursor = 'grab';
         });
+        ui.transcript_timeline_cursor.addEventListener('mouseout', () => {
+            ui.transcript_timeline_cursor.style.cursor = 'default';
+        });
+        ui.transcript_timeline_cursor.addEventListener('mousedown', startDragging);
+        document.addEventListener('mousemove', dragging);
+        document.addEventListener('mouseup', stopDragging);
+
+        // Touch events
+        ui.transcript_timeline.addEventListener('touchstart', startDragging);
+        document.addEventListener('touchmove', dragging);
+        document.addEventListener('touchend', stopDragging);
     }
 
     // Setup global keyboard shortcuts handling
