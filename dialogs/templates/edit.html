@@ -8,7 +8,7 @@
         {{ script.name }}
     </h2>
     <span class="small text-secondary ms-3">
-        &nbsp;&mdash; <strong>Metadata:</strong> {{ script.__dict__ }}
+        &mdash;&nbsp;<strong>Metadata:</strong> {{ script.__dict__ }}
     </span>
 </div>
 <div class="d-flex flex-column flex-md-row gap-3 gap-md-5">
@@ -22,8 +22,8 @@
     </div>
     <div class="flex-grow-1">
         <h3>Transcript</h3>
-        <div id="transcript">
-        </div>
+        <div id="transcript_timeline" class="mb-4" style="position: relative; height: 21px; width: 100%"></div>
+        <div id="transcript_table"></div>
     </div>
 </div>
 
@@ -32,7 +32,12 @@
 
     // Initialize UX
     function init() {
-        get_transcript().then(transcript => display(transcript));
+        get_transcript().then(transcript => {
+            display_timeline(transcript);
+            display_table(transcript);
+        });
+        document.addEventListener('DOMContentLoaded', adjustTableHeight);
+        window.addEventListener('resize', adjustTableHeight);
     }
 
     // Fetch transcript from server
@@ -57,10 +62,10 @@
         return transcript;
     }
 
-    // Populate #transcript with a table containing the given transcript
-    function display(transcript) {
+    // Populate #transcript_table with a table containing the given transcript
+    function display_table(transcript) {
         let html = `
-            <table __contenteditable class="table table-stripped table-hover mb-0">
+            <table class="table table-stripped table-hover mb-0">
                 <thead>
                     <tr>
                         <th>id</th>
@@ -80,68 +85,126 @@
                 </tr>`;
         }
         html += '</table>';
-        // FIXME: Remove event handlers in existing content (or is it not necessary) ?
-        document.getElementById('transcript').innerHTML = html;
+        document.getElementById('transcript_table').innerHTML = html;
 
         const segments_by_id = {};
         for (const segment of transcript) {
             segments_by_id[segment.id] = segment;
         }
 
-        // Handle seek video to segment start time
-        for (const span of document.querySelectorAll('#transcript [data-id]')) {
+        for (const span of document.querySelectorAll('#transcript_table [data-id]')) {
             span.style.cursor = 'pointer';
             span.addEventListener('click', e => {
-                const segment = segments_by_id[span.getAttribute('data-id')];
-                document.getElementById('player').currentTime = segment.start;
+                if (!span.getAttribute('contenteditable')) {
+                    const segment = segments_by_id[span.getAttribute('data-id')];
+                    document.getElementById('player').currentTime = segment.start;
+                }
             });
         }
-        // FIXME: Store these globally for use in the timeupdate event listener
         window.segments_by_id = segments_by_id;
-        window.segments_dom_rows = document.querySelectorAll('#transcript tbody tr');
+        window.segments_dom_table = document.querySelectorAll('#transcript_table tbody tr');
 
+        adjustTableHeight();
         setup_editing();
+    }
+
+    // Display timeline
+    function display_timeline(transcript) {
+        const transcript_timeline = document.getElementById('transcript_timeline');
+        transcript_timeline.innerHTML = ''; // Clear any existing content
+
+        const totalDuration = transcript[transcript.length - 1].end;
+        window.totalDuration = totalDuration;  // Store total duration globally
+
+        const segments_by_id = {};
+
+        transcript.forEach(segment => {
+            const segmentDiv = document.createElement('div');
+            segmentDiv.className = 'segment';
+            segmentDiv.dataset.id = segment.id;  // Add segment ID for reference
+            segmentDiv.style.position = 'absolute';  // TODO: togglable between absolute and relative (expand)
+            segmentDiv.style.backgroundColor = 'var(--bs-secondary-color)';
+            segmentDiv.style.height = '20px';
+            segmentDiv.style.borderRight = '1px dotted black';
+            segmentDiv.style.left = (segment.start / totalDuration * 100) + '%';
+            segmentDiv.style.width = ((segment.end - segment.start) / totalDuration * 100) + '%';
+            segmentDiv.title = `Start: ${segment.start.toFixed(3)}, End: ${segment.end.toFixed(3)}`;
+            transcript_timeline.appendChild(segmentDiv);
+
+            segments_by_id[segment.id] = segment;
+
+            segmentDiv.style.cursor = 'pointer';
+            segmentDiv.addEventListener('click', e => {
+                document.getElementById('player').currentTime = segment.start;
+            });
+        });
+
+        // Add the vertical line to the timeline
+        const verticalLine = document.createElement('div');
+        verticalLine.id = 'vertical_line';
+        verticalLine.style.position = 'absolute';
+        verticalLine.style.backgroundColor = 'red';
+        verticalLine.style.width = '2px';
+        verticalLine.style.height = '200%';
+        verticalLine.style.top = '-50%';
+        verticalLine.style.left = '0';
+        transcript_timeline.appendChild(verticalLine);
+
+        window.segments_by_id = segments_by_id;
+        window.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
     }
 
     // Sync segments highlighting with player time
     document.getElementById('player').addEventListener('timeupdate', function() {
-
         document.getElementById('time').innerText = this.currentTime.toFixed(3);
 
-        window.segments_dom_rows.forEach(row => {
+        window.segments_dom_table.forEach(row => {
             const segmentId = row.getAttribute('data-id');
             const segment = window.segments_by_id[segmentId];
 
             if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
-                if (!row.classList.contains('table-active')) {
-                    // Auto-scroll to segment if not already scrolled
+                if (!row.classList.contains('table-primary')) {
                     row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
                 }
-                row.classList.add('table-active');
+                row.classList.add('table-primary');
             } else {
-                row.classList.remove('table-active');
+                row.classList.remove('table-primary');
             }
         });
+
+        window.segments_dom_timeline.forEach(div => {
+            const segmentId = div.dataset.id;
+            const segment = window.segments_by_id[segmentId];
+
+            if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
+                div.style.backgroundColor = 'var(--bs-info)';
+            } else {
+                div.style.backgroundColor = 'var(--bs-secondary-color)';
+            }
+        });
+
+        // Update the position of the vertical line
+        const totalDuration = window.totalDuration;
+        const transcript_timeline = document.getElementById('transcript_timeline');
+        const currentTimePercent = (this.currentTime / totalDuration) * 100;
+        const verticalLine = document.getElementById('vertical_line');
+        verticalLine.style.left = currentTimePercent + '%';
     });
 
     // Resize table to fit page height
     function adjustTableHeight() {
-        const transcriptElement = document.getElementById('transcript');
+        const transcriptElement = document.getElementById('transcript_table');
         const topPosition = transcriptElement.getBoundingClientRect().top;
         const viewportHeight = window.innerHeight;
         transcriptElement.style.overflow = 'scroll';
-        transcriptElement.style.height = (viewportHeight - topPosition - 0) + 'px';
+        transcriptElement.style.height = (viewportHeight - topPosition - 25) + 'px';
     }
-    document.addEventListener('DOMContentLoaded', adjustTableHeight);
-    window.addEventListener('resize', adjustTableHeight);
 
     // Make segments editable
     function setup_editing() {
-
-        // Generate transcript from table
         function transcript_from_table() {
             transcript = [];
-            for (const row of window.segments_dom_rows) {
+            for (const row of window.segments_dom_table) {
                 transcript.push({
                     id: parseFloat(row.querySelector('[data-type=id]').innerText),
                     start: parseFloat(row.querySelector('[data-type=start]').innerText),
@@ -152,29 +215,27 @@
             return transcript;
         }
 
-        for (const tr of window.segments_dom_rows) {
-            // Handle editing mode toggle
+        for (const tr of window.segments_dom_table) {
             tr.addEventListener('dblclick', function() {
                 tr.setAttribute('contenteditable', true);
                 tr.focus();
             });
             tr.addEventListener('blur', function() {
-                // Check for modifications, prompt user and save
                 const save = confirm('Do you want to save changes ?');
                 if (save) {
                     const actual_transcript = transcript_from_table();
-                    post_transcript(actual_transcript).then(transcript => display(transcript));
+                    post_transcript(actual_transcript).then(transcript => {
+                        display_table(transcript);
+                        display_timeline(transcript); // Also refresh the timeline
+                    });
                 }
                 tr.setAttribute('contenteditable', false);
             });
 
-            // Handle keypresses
             tr.addEventListener('keydown', function(e) {
-                // End editing on Escape
                 if (e.key == 'Escape') {
                     tr.blur();
                 }
-                // End editing on Enter
                 if (e.key == 'Enter') {
                     tr.blur();
                 }
