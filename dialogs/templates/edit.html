@@ -45,34 +45,12 @@
     // Initialize UX
     function init() {
         get_transcript().then(transcript => {
-            display_timeline(transcript);
-            display_table(transcript);
+            display_transcript(transcript);
         });
         // Handle dynamic table height
         document.addEventListener('DOMContentLoaded', adjustTableHeight);
         window.addEventListener('resize', adjustTableHeight);
-        // Handle global keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            const editing = document.querySelectorAll('[contenteditable=true]');
-            if (editing.length) {  // Disable if editing
-                return;
-            }
-            if (e.key == ' ') {
-                e.preventDefault();
-                if (ui.player.paused) ui.player.play();
-                else ui.player.pause();
-            }
-            if (e.key == 'Home') {  // Rewind to time = 0
-                ui.player.currentTime = 0;
-            }
-            // TODO: Skip to previous/next segment, etc.
-            // if (e.key.startsWith('Arrow')) {
-            //     if (e.key == 'ArrowLeft') {  // Skip to next segment start time
-            //     }
-            //     if (e.key == 'ArrowRight') {  // Skip to previous segment start time
-            //     }
-            // }
-        });
+        setup_keyboard_shortcuts();
     }
 
     // To be called everytime transcript changes
@@ -81,6 +59,7 @@
         for (const segment of transcript) {
             ui.segments_by_id[segment.id] = segment;
         }
+        ui.segments_sorted = Object.values(ui.segments_by_id).sort((a, b) => a.start - b.start);  // array of segments sorted by start time
     }
 
     // Fetch transcript from server
@@ -105,6 +84,12 @@
         const transcript = await response.json();
         cache_transcript(transcript);
         return transcript;
+    }
+
+    // User function to keep up-to-date the transcript table and timeline
+    function display_transcript(transcript) {
+        display_table(transcript);
+        display_timeline(transcript); // Also refresh the timeline
     }
 
     // Populate #transcript_table with a table containing the given transcript
@@ -256,8 +241,7 @@
                 if (save) {
                     const actual_transcript = transcript_from_table();
                     post_transcript(actual_transcript).then(transcript => {
-                        display_table(transcript);
-                        display_timeline(transcript); // Also refresh the timeline
+                        display_transcript(transcript);
                     });
                 }
                 tr.setAttribute('contenteditable', false);
@@ -272,6 +256,70 @@
                 }
             });
         }
+    }
+
+    // Handle global keyboard shortcuts
+    function setup_keyboard_shortcuts() {
+        document.addEventListener('keydown', function(e) {
+            const editing = document.querySelectorAll('[contenteditable=true]');
+            if (editing.length) {  // Disable if editing
+                return;
+            }
+            if (e.key == ' ') {
+                e.preventDefault();
+                if (ui.player.paused) ui.player.play();
+                else ui.player.pause();
+            }
+            if (e.key == 'Home') {  // Skip to first segment
+                play_skip_segment('first');
+            }
+            if (e.key == 'End') {  // Skip to last segment
+                play_skip_segment('last');
+            }
+            if (e.key.startsWith('Arrow')) {
+                if (e.key == 'ArrowRight') {  // Skip to next segment start time
+                    play_skip_segment('next');
+                }
+                if (e.key == 'ArrowLeft') {  // Skip to previous segment start time
+                    play_skip_segment('previous');
+                }
+            }
+        });
+    }
+
+    // Make player skip to previous/next segment
+    function play_skip_segment(direction) {
+        direction = direction || 'next';
+        const currentTime = ui.player.currentTime;
+        // Find next/previous segment
+        let targetTime = null;
+        let nearestSegment = null;
+        if (direction === 'next') {
+            for (const segment of ui.segments_sorted) {
+                if (currentTime < segment.start) {
+                    nearestSegment = segment;
+                    break;
+                }
+            }
+        }
+        if (direction === 'previous') {
+            for (let i = ui.segments_sorted.length - 1; i >= 0; i--) {
+                const segment = ui.segments_sorted[i];
+                if (currentTime > segment.start) {
+                    nearestSegment = segment;
+                    break;
+                }
+            }
+        }
+        if (direction === 'first') {
+            nearestSegment = ui.segments_sorted[0];
+        }
+        if (direction === 'last') {
+            nearestSegment = ui.segments_sorted[ui.segments_sorted.length - 1];
+        }
+        // Skip to segment start time (if applicable)
+        if (nearestSegment) targetTime = nearestSegment.start;
+        if (targetTime !== null) ui.player.currentTime = targetTime;
     }
 </script>
 
