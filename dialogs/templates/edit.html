@@ -13,15 +13,19 @@
 </div>
 <div class="d-flex flex-column flex-md-row gap-3 gap-md-5">
     <div>
-        <strong>Current Time:</strong> <span id="time">0</span> s.
-        <br>
         <video id="player" width="320" height="240" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
         </video>
     </div>
     <div class="flex-grow-1">
-        <h3>Transcript</h3>
+        <div class="d-flex gap-2 align-items-baseline">
+            <h3>Transcript</h3>
+            <div>
+                <i class="text-secondary" width="16" data-feather="clock"></i>
+                <span id="time">0</span> s.
+            </div>
+        </div>
         <div id="transcript_timeline" class="mb-4" style="position: relative; height: 21px; width: 100%"></div>
         <div id="transcript_table"></div>
     </div>
@@ -40,7 +44,7 @@
     ui.transcript_timeline_cursor = null;  // set in display_timeline()
     ui.transcript_timeline_totalduration = null;  // set in display_timeline()
     ui.player = document.getElementById('player');
-    ui.time = document.getElementById('time');
+    ui.player_time_dom = document.getElementById('time');
 
     // Initialize UX
     function init() {
@@ -150,7 +154,11 @@
             segmentDiv.style.borderRight = '1px dotted black';
             segmentDiv.style.left = (segment.start / totalDuration * 100) + '%';
             segmentDiv.style.width = ((segment.end - segment.start) / totalDuration * 100) + '%';
-            segmentDiv.title = `Start: ${format_time(segment.start)}, End: ${format_time(segment.end)}`;
+            segmentDiv.style.color = 'black';
+            segmentDiv.style.fontSize = '14px';
+            segmentDiv.style.paddingLeft = '3px';
+            segmentDiv.innerHTML = `<strong>${segment.id}</strong>`;
+            segmentDiv.title = `Segment ${segment.id}\n🕓 ${format_time(segment.start)} ➜ ${format_time(segment.end)} s.\n\n${segment.text}\n `;
             transcript_timeline.appendChild(segmentDiv);
 
             segmentDiv.style.cursor = 'pointer';
@@ -183,7 +191,7 @@
     function setup_player_sync() {
         // Sync segments highlighting with player time
         ui.player.addEventListener('timeupdate', function() {
-            ui.time.innerText = this.currentTime;
+            ui.player_time_dom.innerText = format_time(this.currentTime);
 
             ui.segments_dom_table.forEach(row => {
                 const segmentId = row.getAttribute('data-id');
