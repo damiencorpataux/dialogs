@@ -15,9 +15,9 @@
         </style>
     </head>
     <body data-bs-theme="dark" tabindex="-1">  <!-- tabindex to disable mobile chrome 'search on tap' -->
-        <div class="container-fluid px-4 py-1 py-lg-4">
-            <div class="d-flex flex-row gap-2 align-items-baseline">
-                <i class="brand pe-auto" data-feather="mic" stroke-width="3" width="32" height="32" style="position:relative; top: 5px"></i>
+        <div class="container-fluid px-4 pt-1 pt-lg-4">
+            <div class="d-flex flex-row gap-3 align-items-baseline">
+                <i class="brand pe-auto" data-feather="mic" stroke-width="3" width="32" height="32"></i>
                 <h1>
                     Dialogs.
                 </h1>

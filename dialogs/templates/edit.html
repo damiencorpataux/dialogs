@@ -2,6 +2,7 @@
 
 {% block content %}
 
+<!-- Page header -->
 <style>
 @media (max-width: 992px) {
     #script_header_title {
@@ -19,23 +20,41 @@
         &mdash;&nbsp;<strong>Metadata:</strong> {{ script.__dict__ }}
     </span>
 </div>
+<!-- Transcript timeline
+     FIXME: Must be below video when breakpoint < lg -->
+<style>
+    #transcript_timeline {
+        position: relative;
+        background-color: #333;
+        height: 20px;
+        width: 100%;
+        user-select: none;  /* prevent selecting text while dragging */
+    };
+</style>
+<div id="transcript_timeline" class="mb-2 mb-lg-4"></div>
+
 <div class="d-flex flex-column flex-lg-row gap-1 gap-lg-5">
+    <!-- Video player -->
     <div class="col-lg-4 text-center">
         <video id="player" class="mw-100" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
         </video>
     </div>
+    <!-- Transcript table -->
     <div class="flex-grow-1">
         <div class="d-flex gap-2 align-items-baseline">
-            <h3>Transcript</h3>
+            <i class="d-none d-lg-inline text-secondary" data-feather="align-left"></i>
+            <h3 class="d-none d-lg-inline">
+                Transcript
+            </h3>
             <div title="Current time" class="ms-auto text-muted small">
                 <i class="text-secondary" width="16" data-feather="clock"></i>
                 <span id="time_current">0</span> s.
             </div>
             <div class="ms-auto text-muted small">
                 <span class="me-2">
-                    Total times:
+                    Lengths:
                 </span>
                 <span class="me-2" title="Total transcript time">
                     <i class="text-secondary" width="16" data-feather="align-left"></i>
@@ -47,24 +66,16 @@
                 </span>
             </div>
         </div>
-        <style>
-            #transcript_timeline {
-                position: relative;
-                height: 20px;
-                width: 100%;
-                user-select: none;  /* prevent selecting text while dragging */
-            };
-        </style>
-        <div id="transcript_timeline" class="mb-2 mb-lg-4"></div>
         <div id="transcript_table"></div>
     </div>
 </div>
 
+<!-- UX Logic -->
 <script>
     document.addEventListener('DOMContentLoaded', init);
 
     // Reference UI DOM elements
-    const ui = {};
+    const ui = {};  // TODO: split into ui.dom & ui.data
     ui.segments_by_id = null;  // set in cache_transcript()
     ui.transcript_table = document.getElementById('transcript_table');
     ui.segments_dom_table = null;  // set in display_table()
@@ -434,7 +445,7 @@
 
     // Resize table and video to fit page height
     function adjust_dom_heights() {
-        const paddingBottom = 30;
+        const paddingBottom = 10;
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
         // Adjust video height, only when viewport is below lg breakpoint (992px)
