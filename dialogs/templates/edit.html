@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<div class="mb-5">
+<div class="mb-md-5">
     <h2 class="d-inline">
         <i class="text-secondary pe-auto me-2" data-feather="film"></i>
         {{ script.name }}
@@ -11,9 +11,16 @@
         &mdash;&nbsp;<strong>Metadata:</strong> {{ script.__dict__ }}
     </span>
 </div>
-<div class="d-flex flex-column flex-md-row gap-3 gap-md-5">
-    <div>
-        <video id="player" width="320" height="240" controls>
+<div class="d-flex flex-column flex-lg-row gap-3 gap-md-5">
+    <div class="col-lg-4 text-center">
+        <style>
+            @media (max-width: 992px) { /* below breakpoint lg */
+                #player {
+                    max-height: 240px;
+                }
+            }
+        </style>
+        <video id="player" class="mw-100" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
         </video>
