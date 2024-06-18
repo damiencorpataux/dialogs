@@ -83,8 +83,8 @@
             display_transcript(transcript);
         });
         // Handle dynamic table height
-        document.addEventListener('DOMContentLoaded', adjustTableHeight);
-        window.addEventListener('resize', adjustTableHeight);
+        document.addEventListener('DOMContentLoaded', adjust_dom_heights);
+        window.addEventListener('resize', adjust_dom_heights);
         setup_player_sync();
         setup_keyboard_shortcuts();
     }
@@ -171,7 +171,7 @@
         // Store DOM elements for UX logic
         ui.segments_dom_table = document.querySelectorAll('#transcript_table tbody tr');
         // Setup UX logic
-        adjustTableHeight();
+        adjust_dom_heights();
         setup_editing();
     }
 
@@ -227,40 +227,52 @@
 
     // Sync player time with table/timeline display
     function setup_player_sync() {
-        // Sync segments highlighting with player time
         ui.player.addEventListener('timeupdate', function() {
+            // Update current time of the player
             ui.player_time_dom.innerText = format_time(this.currentTime);
-
+            // Update the position of the cursor line in timeline
+            const totalDuration = ui.transcript_timeline_totalduration;
+            const currentTimePercent = (ui.player.currentTime / totalDuration) * 100;
+            ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
+            // Update segments highlighting in transcript table
             ui.segments_dom_table.forEach(row => {
                 const segmentId = row.getAttribute('data-id');
                 const segment = ui.segments_by_id[segmentId];
-
                 if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
                     if (!row.classList.contains('table-primary')) {
-                        row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                        // row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                        scrollRowIntoView(row);
                     }
                     row.classList.add('table-primary');
                 } else {
                     row.classList.remove('table-primary');
                 }
             });
-
             ui.segments_dom_timeline.forEach(div => {
                 const segmentId = div.dataset.id;
                 const segment = ui.segments_by_id[segmentId];
-
                 if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
                     div.style.backgroundColor = 'var(--bs-info)';
                 } else {
                     div.style.backgroundColor = 'var(--bs-secondary-color)';
                 }
             });
-
-            // Update the position of the cursor line
-            const totalDuration = ui.transcript_timeline_totalduration;
-            const currentTimePercent = (ui.player.currentTime / totalDuration) * 100;
-            ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
         });
+        // Helper function to scroll row into visual center of the table
+        function scrollRowIntoView(row) {
+            const tableRect = ui.transcript_table.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            // Calculate the center position of the table and row
+            const tableCenterY = tableRect.top + tableRect.height / 2;
+            const rowCenterY = rowRect.top + rowRect.height / 2;
+            // Calculate the scroll position to center the row
+            const scrollY = rowCenterY - tableCenterY + ui.transcript_table.scrollTop;
+            // Smooth scroll to the calculated position
+            ui.transcript_table.scrollTo({
+                top: scrollY,
+                behavior: 'smooth'
+            });
+        }
     }
 
     // Setup segments edition handling
@@ -421,7 +433,7 @@
     }
 
     // Resize table and video to fit page height
-    function adjustTableHeight() {
+    function adjust_dom_heights() {
         const paddingBottom = 30;
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
