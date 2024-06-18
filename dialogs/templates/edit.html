@@ -30,14 +30,57 @@
 <script>
     document.addEventListener('DOMContentLoaded', init);
 
+    // Reference UI DOM elements
+    const ui = {};
+    ui.segments_by_id = null;  // set in cache_transcript()
+    ui.transcript_table = document.getElementById('transcript_table');
+    ui.segments_dom_table = null;  // set in display_table()
+    ui.transcript_timeline = document.getElementById('transcript_timeline');
+    ui.segments_dom_timeline = null;  // set in display_timeline()
+    ui.transcript_timeline_cursor = null;  // set in display_timeline()
+    ui.transcript_timeline_totalduration = null;  // set in display_timeline()
+    ui.player = document.getElementById('player');
+    ui.time = document.getElementById('time');
+
     // Initialize UX
     function init() {
         get_transcript().then(transcript => {
             display_timeline(transcript);
             display_table(transcript);
         });
+        // Handle dynamic table height
         document.addEventListener('DOMContentLoaded', adjustTableHeight);
         window.addEventListener('resize', adjustTableHeight);
+        // Handle global keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            const editing = document.querySelectorAll('[contenteditable=true]');
+            if (editing.length) {  // Disable if editing
+                return;
+            }
+            if (e.key == ' ') {
+                e.preventDefault();
+                if (ui.player.paused) ui.player.play();
+                else ui.player.pause();
+            }
+            if (e.key == 'Home') {  // Rewind to time = 0
+                ui.player.currentTime = 0;
+            }
+            // TODO: Skip to previous/next segment, etc.
+            // if (e.key.startsWith('Arrow')) {
+            //     if (e.key == 'ArrowLeft') {  // Skip to next segment start time
+            //     }
+            //     if (e.key == 'ArrowRight') {  // Skip to previous segment start time
+            //     }
+            // }
+        });
+    }
+
+    // To be called everytime transcript changes
+    function cache_transcript(transcript) {
+        ui.segments_by_id = {};
+        for (const segment of transcript) {
+            ui.segments_by_id[segment.id] = segment;
+        }
     }
 
     // Fetch transcript from server
@@ -45,6 +88,7 @@
         const script_url = "{{ url_for('api_script_transcript', script_id=script.name) }}";
         const response = await fetch(script_url);
         const transcript = await response.json();
+        cache_transcript(transcript);
         return transcript;
     }
 
@@ -59,6 +103,7 @@
             body: JSON.stringify(new_transcript)
         });
         const transcript = await response.json();
+        cache_transcript(transcript);
         return transcript;
     }
 
@@ -68,10 +113,10 @@
             <table class="table table-stripped table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>id</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Text</th>
+                        <th _style="position:sticky;top:0">id</th>
+                        <th _style="position:sticky;top:0">Start</th>
+                        <th _style="position:sticky;top:0">End</th>
+                        <th _style="position:sticky;top:0">Text</th>
                     </tr>
                 </thead>
             `;
@@ -85,24 +130,18 @@
                 </tr>`;
         }
         html += '</table>';
-        document.getElementById('transcript_table').innerHTML = html;
-
-        const segments_by_id = {};
-        for (const segment of transcript) {
-            segments_by_id[segment.id] = segment;
-        }
+        ui.transcript_table.innerHTML = html;
 
         for (const span of document.querySelectorAll('#transcript_table [data-id]')) {
             span.style.cursor = 'pointer';
             span.addEventListener('click', e => {
                 if (!span.getAttribute('contenteditable')) {
-                    const segment = segments_by_id[span.getAttribute('data-id')];
-                    document.getElementById('player').currentTime = segment.start;
+                    const segment = ui.segments_by_id[span.getAttribute('data-id')];
+                    ui.player.currentTime = segment.start;
                 }
             });
         }
-        window.segments_by_id = segments_by_id;
-        window.segments_dom_table = document.querySelectorAll('#transcript_table tbody tr');
+        ui.segments_dom_table = document.querySelectorAll('#transcript_table tbody tr');
 
         adjustTableHeight();
         setup_editing();
@@ -110,13 +149,10 @@
 
     // Display timeline
     function display_timeline(transcript) {
-        const transcript_timeline = document.getElementById('transcript_timeline');
-        transcript_timeline.innerHTML = ''; // Clear any existing content
+        ui.transcript_timeline.innerHTML = ''; // Clear any existing content
 
         const totalDuration = transcript[transcript.length - 1].end;
-        window.totalDuration = totalDuration;  // Store total duration globally
-
-        const segments_by_id = {};
+        ui.transcript_timeline_totalduration = totalDuration;  // Store total duration globally
 
         transcript.forEach(segment => {
             const segmentDiv = document.createElement('div');
@@ -131,36 +167,34 @@
             segmentDiv.title = `Start: ${segment.start.toFixed(3)}, End: ${segment.end.toFixed(3)}`;
             transcript_timeline.appendChild(segmentDiv);
 
-            segments_by_id[segment.id] = segment;
-
             segmentDiv.style.cursor = 'pointer';
             segmentDiv.addEventListener('click', e => {
-                document.getElementById('player').currentTime = segment.start;
+                ui.player.currentTime = segment.start;
             });
         });
 
-        // Add the vertical line to the timeline
-        const verticalLine = document.createElement('div');
-        verticalLine.id = 'vertical_line';
-        verticalLine.style.position = 'absolute';
-        verticalLine.style.backgroundColor = 'red';
-        verticalLine.style.width = '2px';
-        verticalLine.style.height = '200%';
-        verticalLine.style.top = '-50%';
-        verticalLine.style.left = '0';
-        transcript_timeline.appendChild(verticalLine);
+        // Add the cursor line to the timeline
+        const cursorLine = document.createElement('div');
+        cursorLine.id = 'cursor_line';
+        cursorLine.style.position = 'absolute';
+        cursorLine.style.backgroundColor = 'red';
+        cursorLine.style.width = '2px';
+        cursorLine.style.height = '200%';
+        cursorLine.style.top = '-50%';
+        cursorLine.style.left = '0';
+        transcript_timeline.appendChild(cursorLine);
 
-        window.segments_by_id = segments_by_id;
-        window.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
+        ui.transcript_timeline_cursor = document.getElementById('cursor_line');
+        ui.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
     }
 
     // Sync segments highlighting with player time
-    document.getElementById('player').addEventListener('timeupdate', function() {
-        document.getElementById('time').innerText = this.currentTime.toFixed(3);
+    ui.player.addEventListener('timeupdate', function() {
+        ui.time.innerText = this.currentTime.toFixed(3);
 
-        window.segments_dom_table.forEach(row => {
+        ui.segments_dom_table.forEach(row => {
             const segmentId = row.getAttribute('data-id');
-            const segment = window.segments_by_id[segmentId];
+            const segment = ui.segments_by_id[segmentId];
 
             if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
                 if (!row.classList.contains('table-primary')) {
@@ -172,9 +206,9 @@
             }
         });
 
-        window.segments_dom_timeline.forEach(div => {
+        ui.segments_dom_timeline.forEach(div => {
             const segmentId = div.dataset.id;
-            const segment = window.segments_by_id[segmentId];
+            const segment = ui.segments_by_id[segmentId];
 
             if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
                 div.style.backgroundColor = 'var(--bs-info)';
@@ -183,28 +217,25 @@
             }
         });
 
-        // Update the position of the vertical line
-        const totalDuration = window.totalDuration;
-        const transcript_timeline = document.getElementById('transcript_timeline');
-        const currentTimePercent = (this.currentTime / totalDuration) * 100;
-        const verticalLine = document.getElementById('vertical_line');
-        verticalLine.style.left = currentTimePercent + '%';
+        // Update the position of the cursor line
+        const totalDuration = ui.transcript_timeline_totalduration;
+        const currentTimePercent = (ui.player.currentTime / totalDuration) * 100;
+        ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
     });
 
     // Resize table to fit page height
     function adjustTableHeight() {
-        const transcriptElement = document.getElementById('transcript_table');
-        const topPosition = transcriptElement.getBoundingClientRect().top;
         const viewportHeight = window.innerHeight;
-        transcriptElement.style.overflow = 'scroll';
-        transcriptElement.style.height = (viewportHeight - topPosition - 25) + 'px';
+        const topPosition = ui.transcript_table.getBoundingClientRect().top;
+        ui.transcript_table.style.overflow = 'scroll';
+        ui.transcript_table.style.height = (viewportHeight - topPosition - 25) + 'px';
     }
 
     // Make segments editable
     function setup_editing() {
         function transcript_from_table() {
             transcript = [];
-            for (const row of window.segments_dom_table) {
+            for (const row of ui.segments_dom_table) {
                 transcript.push({
                     id: parseFloat(row.querySelector('[data-type=id]').innerText),
                     start: parseFloat(row.querySelector('[data-type=start]').innerText),
@@ -215,7 +246,7 @@
             return transcript;
         }
 
-        for (const tr of window.segments_dom_table) {
+        for (const tr of ui.segments_dom_table) {
             tr.addEventListener('dblclick', function() {
                 tr.setAttribute('contenteditable', true);
                 tr.focus();
