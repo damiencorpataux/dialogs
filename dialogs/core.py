@@ -13,7 +13,6 @@ class Script:
     """
     A Movie Script.
     """
-
     scripts_path = os.path.join(config['backend']['workdir'], 'userdata', 'scripts')
 
     def __init__(self, name) -> None:
@@ -66,13 +65,13 @@ class Script:
         try:
             script = Script(name)
             with open(video_filename, 'rb') as f:
-                script.upload_video(f.read())
+                script.write_video(f.read())
             script.extract_transcript()
         except Exception as e:
             Script.delete(name)  # Clean aborted work
             raise
 
-    def upload_video(self, video_binary):
+    def write_video(self, video_binary):
         print('Writing...', len(video_binary))
         tmp_filename = self.video_filename + '-tmp'
         with open(tmp_filename, 'wb') as file:
@@ -104,7 +103,7 @@ class Script:
         print('Loading audio...')
         model = whisper.load_model(whisper_model)
         print('Transcribing...', whisper_model)
-        transcript = model.transcribe(self.audio_filename)
+        transcript = model.transcribe(self.audio_filename)  # TODO: use verbose=True to get progress ? https://github.com/openai/whisper/discussions/850#discussioncomment-7850096
         print('Stripping transcript...')
         transcript = [
             {
