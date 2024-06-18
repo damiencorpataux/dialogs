@@ -33,7 +33,15 @@
                 <span id="time">0</span> s.
             </div>
         </div>
-        <div id="transcript_timeline" class="mb-4" style="position: relative; height: 21px; width: 100%"></div>
+        <style>
+            #transcript_timeline {
+                position: relative;
+                height: 20px;
+                width: 100%;
+                user-select: none;  /* prevent selecting text while dragging */
+            };
+        </style>
+        <div id="transcript_timeline" class="mb-4"></div>
         <div id="transcript_table"></div>
     </div>
 </div>
@@ -119,7 +127,7 @@
             `;
         for (const segment of transcript) {
             html += `
-                <tr data-id="${segment.id}">
+                <tr data-id="${segment.id}" title="Double-click to edit">
                     <td data-type="id" class="text-muted">${segment.id}</td>
                     <td data-type="start">${format_time(segment.start)}</td>
                     <td data-type="end">${format_time(segment.end)}</td>
@@ -129,17 +137,18 @@
         html += '</table>';
         ui.transcript_table.innerHTML = html;
 
-        for (const span of document.querySelectorAll('#transcript_table [data-id]')) {
-            span.style.cursor = 'pointer';
-            span.addEventListener('click', e => {
-                if (!span.getAttribute('contenteditable')) {
-                    const segment = ui.segments_by_id[span.getAttribute('data-id')];
+        for (const tr of document.querySelectorAll('#transcript_table tr[data-id]')) {
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('click', e => {
+                if (!tr.hasAttribute('contenteditable') || 'false' == tr.getAttribute('contenteditable')) {
+                    const segment = ui.segments_by_id[tr.getAttribute('data-id')];
                     ui.player.currentTime = segment.start;
                 }
             });
         }
+        // Store DOM elements for UX logic
         ui.segments_dom_table = document.querySelectorAll('#transcript_table tbody tr');
-
+        // Setup UX logic
         adjustTableHeight();
         setup_editing();
     }
@@ -166,14 +175,12 @@
             segmentDiv.style.paddingLeft = '3px';
             segmentDiv.innerHTML = `<strong>${segment.id}</strong>`;
             segmentDiv.title = `Segment ${segment.id}\n🕓 ${format_time(segment.start)} ➜ ${format_time(segment.end)} s.\n\n${segment.text}\n `;
-            transcript_timeline.appendChild(segmentDiv);
-
             segmentDiv.style.cursor = 'pointer';
             segmentDiv.addEventListener('click', e => {
                 ui.player.currentTime = segment.start;
             });
+            transcript_timeline.appendChild(segmentDiv);
         });
-
         // Add the cursor line to the timeline
         const cursorLine = document.createElement('div');
         cursorLine.id = 'cursor_line';
@@ -184,9 +191,11 @@
         cursorLine.style.top = '-50%';
         cursorLine.style.left = '0';
         transcript_timeline.appendChild(cursorLine);
-
+        // Store DOM elements for UX logic
         ui.transcript_timeline_cursor = document.getElementById('cursor_line');
         ui.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
+        // Setup UX logic
+        setup_timeline_cursor_drag();
     }
 
     function format_time(seconds) {
@@ -240,7 +249,7 @@
         ui.transcript_table.style.height = (viewportHeight - topPosition - 25) + 'px';
     }
 
-    // Make segments editable
+    // Setup segments edition handling
     function setup_editing() {
         function transcript_from_table() {
             transcript = [];
@@ -282,7 +291,54 @@
         }
     }
 
-    // Handle global keyboard shortcuts
+    // Setup timeline cursor dragging support
+    function setup_timeline_cursor_drag() {
+        let isDragging = false;
+        let cursorOffsetX = 0;
+        // Change cursor to pointer on hover
+        ui.transcript_timeline_cursor.addEventListener('mouseover', () => {
+            ui.transcript_timeline_cursor.style.cursor = 'grab';
+        });
+        ui.transcript_timeline_cursor.addEventListener('mouseout', () => {
+            ui.transcript_timeline_cursor.style.cursor = 'default';
+        });
+        // Handle dragging
+        ui.transcript_timeline_cursor.addEventListener('mousedown', e => {
+            isDragging = true;
+            cursorOffsetX = e.offsetX;
+            ui.transcript_timeline_cursor.style.cursor = 'grabbing';
+        });
+        // FIXME: Is it adding the same listeners to document
+        //        everytime the timeline is redrawn ?
+        document.addEventListener('mousemove', e => {
+            if (isDragging) {
+                // Calculate new position for cursor
+                const timelineRect = ui.transcript_timeline.getBoundingClientRect();
+                let newX = e.clientX - timelineRect.left - cursorOffsetX;
+                newX = Math.max(0, Math.min(newX, timelineRect.width)); // Clamp within timeline bounds
+
+                // Update cursor position
+                ui.transcript_timeline_cursor.style.left = newX + 'px';
+
+                // Update player time in real-time
+                const totalDuration = ui.transcript_timeline_totalduration;
+                const newTime = (newX / timelineRect.width) * totalDuration;
+                ui.player_time_dom.innerText = format_time(newTime);
+
+                // Set player currentTime to the position of the cursor
+                const cursorX = parseFloat(ui.transcript_timeline_cursor.style.left);
+                const currentTime = (cursorX / timelineRect.width) * totalDuration;
+                ui.player.currentTime = currentTime;
+            }
+        });
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+            }
+        });
+    }
+
+    // Setup global keyboard shortcuts handling
     function setup_keyboard_shortcuts() {
         document.addEventListener('keydown', function(e) {
             const editing = document.querySelectorAll('[contenteditable=true]');
