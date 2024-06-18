@@ -50,6 +50,7 @@
         // Handle dynamic table height
         document.addEventListener('DOMContentLoaded', adjustTableHeight);
         window.addEventListener('resize', adjustTableHeight);
+        setup_player_sync();
         setup_keyboard_shortcuts();
     }
 
@@ -109,8 +110,8 @@
             html += `
                 <tr data-id="${segment.id}">
                     <td data-type="id" class="text-muted">${segment.id}</td>
-                    <td data-type="start">${segment.start.toFixed(3)}</td>
-                    <td data-type="end">${segment.end.toFixed(3)}</td>
+                    <td data-type="start">${format_time(segment.start)}</td>
+                    <td data-type="end">${format_time(segment.end)}</td>
                     <td data-type="text">${segment.text}</td>
                 </tr>`;
         }
@@ -149,7 +150,7 @@
             segmentDiv.style.borderRight = '1px dotted black';
             segmentDiv.style.left = (segment.start / totalDuration * 100) + '%';
             segmentDiv.style.width = ((segment.end - segment.start) / totalDuration * 100) + '%';
-            segmentDiv.title = `Start: ${segment.start.toFixed(3)}, End: ${segment.end.toFixed(3)}`;
+            segmentDiv.title = `Start: ${format_time(segment.start)}, End: ${format_time(segment.end)}`;
             transcript_timeline.appendChild(segmentDiv);
 
             segmentDiv.style.cursor = 'pointer';
@@ -173,40 +174,48 @@
         ui.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
     }
 
-    // Sync segments highlighting with player time
-    ui.player.addEventListener('timeupdate', function() {
-        ui.time.innerText = this.currentTime.toFixed(3);
+    function format_time(seconds) {
+        return seconds.toFixed(2);
+        // return parseFloat(seconds.toFixed(2));
+    }
 
-        ui.segments_dom_table.forEach(row => {
-            const segmentId = row.getAttribute('data-id');
-            const segment = ui.segments_by_id[segmentId];
+    // Sync player time with table/timeline display
+    function setup_player_sync() {
+        // Sync segments highlighting with player time
+        ui.player.addEventListener('timeupdate', function() {
+            ui.time.innerText = this.currentTime;
 
-            if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
-                if (!row.classList.contains('table-primary')) {
-                    row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            ui.segments_dom_table.forEach(row => {
+                const segmentId = row.getAttribute('data-id');
+                const segment = ui.segments_by_id[segmentId];
+
+                if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
+                    if (!row.classList.contains('table-primary')) {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                    }
+                    row.classList.add('table-primary');
+                } else {
+                    row.classList.remove('table-primary');
                 }
-                row.classList.add('table-primary');
-            } else {
-                row.classList.remove('table-primary');
-            }
+            });
+
+            ui.segments_dom_timeline.forEach(div => {
+                const segmentId = div.dataset.id;
+                const segment = ui.segments_by_id[segmentId];
+
+                if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
+                    div.style.backgroundColor = 'var(--bs-info)';
+                } else {
+                    div.style.backgroundColor = 'var(--bs-secondary-color)';
+                }
+            });
+
+            // Update the position of the cursor line
+            const totalDuration = ui.transcript_timeline_totalduration;
+            const currentTimePercent = (ui.player.currentTime / totalDuration) * 100;
+            ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
         });
-
-        ui.segments_dom_timeline.forEach(div => {
-            const segmentId = div.dataset.id;
-            const segment = ui.segments_by_id[segmentId];
-
-            if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
-                div.style.backgroundColor = 'var(--bs-info)';
-            } else {
-                div.style.backgroundColor = 'var(--bs-secondary-color)';
-            }
-        });
-
-        // Update the position of the cursor line
-        const totalDuration = ui.transcript_timeline_totalduration;
-        const currentTimePercent = (ui.player.currentTime / totalDuration) * 100;
-        ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
-    });
+    }
 
     // Resize table to fit page height
     function adjustTableHeight() {
@@ -262,7 +271,7 @@
     function setup_keyboard_shortcuts() {
         document.addEventListener('keydown', function(e) {
             const editing = document.querySelectorAll('[contenteditable=true]');
-            if (editing.length) {  // Disable if editing
+            if (editing.length) {  // Disable global shortcuts if editing
                 return;
             }
             if (e.key == ' ') {
@@ -287,7 +296,7 @@
         });
     }
 
-    // Make player skip to previous/next segment
+    // Skip player to previous/next segment
     function play_skip_segment(direction) {
         direction = direction || 'next';
         const currentTime = ui.player.currentTime;
