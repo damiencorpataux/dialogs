@@ -5,7 +5,7 @@
 <style>
 @media (max-width: 992px) {
     #script_header_title {
-        max-height: 3rlh;
+        max-height: 4rlh;
         overflow: scroll;
     }
 }
@@ -29,13 +29,22 @@
     <div class="flex-grow-1">
         <div class="d-flex gap-2 align-items-baseline">
             <h3>Transcript</h3>
-            <div class="small" title="Current time">
+            <div title="Current time" class="ms-auto text-muted small">
                 <i class="text-secondary" width="16" data-feather="clock"></i>
                 <span id="time_current">0</span> s.
             </div>
-            <div class="ms-auto text-muted small" title="Total video time">
-                <i class="text-secondary" width="16" data-feather="video"></i>
-                <span id="time_total">?</span> s.
+            <div class="ms-auto text-muted small">
+                <span class="me-2">
+                    Total times:
+                </span>
+                <span class="me-2" title="Total transcript time">
+                    <i class="text-secondary" width="16" data-feather="align-left"></i>
+                    <span id="time_total_transcript">?</span>
+                </span>
+                <span class="ms-auto" title="Total video time">
+                    <i class="text-secondary" width="16" data-feather="video"></i>
+                    <span id="time_total_video">?</span> s.
+                </span>
             </div>
         </div>
         <style>
@@ -63,9 +72,10 @@
     ui.segments_dom_timeline = null;  // set in display_timeline()
     ui.transcript_timeline_cursor = null;  // set in display_timeline()
     ui.transcript_timeline_totalduration = null;  // set in display_timeline()
+    ui.transcript_time_total_dom = document.getElementById('time_total_transcript');
     ui.player = document.getElementById('player');
     ui.player_time_dom = document.getElementById('time_current');
-    ui.player_time_total_dom = document.getElementById('time_total');
+    ui.player_time_total_dom = document.getElementById('time_total_video');
 
     // Initialize UX
     function init() {
@@ -89,6 +99,9 @@
             ui.segments_by_id[segment.id] = segment;
         }
         ui.segments_sorted = Object.values(ui.segments_by_id).sort((a, b) => a.start - b.start);  // array of segments sorted by start time
+        ui.transcript_time_total_dom.innerText = format_time(
+            ui.segments_sorted[ui.segments_sorted.length - 1].end
+        );
     }
 
     // Fetch transcript from server
@@ -414,7 +427,6 @@
         const viewportWidth = window.innerWidth;
         // Adjust video height, only when viewport is below lg breakpoint (992px)
         if (viewportWidth > 992) {
-            console.log(viewportWidth)
             const videoTopPosition = ui.player.getBoundingClientRect().top;
             ui.player.style.maxHeight = (viewportHeight - videoTopPosition - paddingBottom) + 'px';
         } else {
