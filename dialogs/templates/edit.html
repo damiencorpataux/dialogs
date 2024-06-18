@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<div class="mb-md-5">
+<div class="mb-3 mb-lg-4">
     <h2 class="d-inline">
         <i class="text-secondary pe-auto me-2" data-feather="film"></i>
         {{ script.name }}
@@ -11,15 +11,8 @@
         &mdash;&nbsp;<strong>Metadata:</strong> {{ script.__dict__ }}
     </span>
 </div>
-<div class="d-flex flex-column flex-lg-row gap-3 gap-md-5">
+<div class="d-flex flex-column flex-lg-row gap-3 gap-lg-5">
     <div class="col-lg-4 text-center">
-        <style>
-            @media (max-width: 992px) { /* below breakpoint lg */
-                #player {
-                    max-height: 240px;
-                }
-            }
-        </style>
         <video id="player" class="mw-100" controls>
             <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
@@ -28,9 +21,13 @@
     <div class="flex-grow-1">
         <div class="d-flex gap-2 align-items-baseline">
             <h3>Transcript</h3>
-            <div>
+            <div class="small" title="Current time">
                 <i class="text-secondary" width="16" data-feather="clock"></i>
-                <span id="time">0</span> s.
+                <span id="time_current">0</span> s.
+            </div>
+            <div class="ms-auto text-muted small" title="Total video time">
+                <i class="text-secondary" width="16" data-feather="video"></i>
+                <span id="time_total">?</span> s.
             </div>
         </div>
         <style>
@@ -59,7 +56,8 @@
     ui.transcript_timeline_cursor = null;  // set in display_timeline()
     ui.transcript_timeline_totalduration = null;  // set in display_timeline()
     ui.player = document.getElementById('player');
-    ui.player_time_dom = document.getElementById('time');
+    ui.player_time_dom = document.getElementById('time_current');
+    ui.player_time_total_dom = document.getElementById('time_total');
 
     // Initialize UX
     function init() {
@@ -69,6 +67,7 @@
         // Handle dynamic table height
         document.addEventListener('DOMContentLoaded', adjustTableHeight);
         window.addEventListener('resize', adjustTableHeight);
+        ui.player_time_total_dom.innerText = format_time(ui.player.duration);
         setup_player_sync();
         setup_keyboard_shortcuts();
     }
@@ -241,14 +240,6 @@
         });
     }
 
-    // Resize table to fit page height
-    function adjustTableHeight() {
-        const viewportHeight = window.innerHeight;
-        const topPosition = ui.transcript_table.getBoundingClientRect().top;
-        ui.transcript_table.style.overflow = 'scroll';
-        ui.transcript_table.style.height = (viewportHeight - topPosition - 25) + 'px';
-    }
-
     // Setup segments edition handling
     function setup_editing() {
         function transcript_from_table() {
@@ -400,6 +391,25 @@
         // Skip to segment start time (if applicable)
         if (nearestSegment) targetTime = nearestSegment.start;
         if (targetTime !== null) ui.player.currentTime = targetTime;
+    }
+
+    // Resize table and video to fit page height
+    function adjustTableHeight() {
+        const paddingBottom = 30;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        // Adjust video height, only when viewport is below lg breakpoint (992px)
+        if (viewportWidth > 992) {
+            console.log(viewportWidth)
+            const videoTopPosition = ui.player.getBoundingClientRect().top;
+            ui.player.style.maxHeight = (viewportHeight - videoTopPosition - paddingBottom) + 'px';
+        } else {
+            ui.player.style.maxHeight = '180px'; // Reset to default when above lg breakpoint
+        }
+        // Adjust transcript table height
+        const tableTopPosition = ui.transcript_table.getBoundingClientRect().top;
+        ui.transcript_table.style.overflow = 'scroll';
+        ui.transcript_table.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
     }
 </script>
 
