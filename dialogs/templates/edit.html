@@ -5,7 +5,7 @@
 <style>
 @media (max-width: 992px) {
     #script_header_title {
-        max-height: 2.5rlh;
+        max-height: 3rlh;
         overflow: scroll;
     }
 }
@@ -252,6 +252,7 @@
 
     // Setup segments edition handling
     function setup_editing() {
+        // Generate a valid transcript object from DOM table contents
         function transcript_from_table() {
             transcript = [];
             for (const row of ui.segments_dom_table) {
@@ -264,7 +265,7 @@
             }
             return transcript;
         }
-
+        // Handle trigger edit mode for row
         for (const tr of ui.segments_dom_table) {
             tr.addEventListener('dblclick', function() {
                 tr.setAttribute('contenteditable', true);
@@ -280,7 +281,7 @@
                 }
                 tr.setAttribute('contenteditable', false);
             });
-
+            // Handle keypresses during edit
             tr.addEventListener('keydown', function(e) {
                 if (e.key == 'Escape') {
                     tr.blur();
@@ -296,37 +297,30 @@
     function setup_timeline_cursor_drag() {
         let isDragging = false;
         let cursorOffsetX = 0;
-
         // Function to handle the start of dragging
         function startDragging(e) {
             e.preventDefault();
             isDragging = true;
             ui.transcript_timeline_cursor.style.cursor = 'grabbing';
         }
-
         // Function to handle the dragging
         function dragging(e) {
             if (isDragging) {
                 const clientX = (e.clientX !== undefined) ? e.clientX : e.touches[0].clientX;
-
                 // Calculate new position for cursor
                 const timelineRect = ui.transcript_timeline.getBoundingClientRect();
                 let newX = clientX - timelineRect.left;
                 newX = Math.max(0, Math.min(newX, timelineRect.width)); // Clamp within timeline bounds
-
                 // Update cursor position
                 ui.transcript_timeline_cursor.style.left = newX + 'px';
-
                 // Update player time in real-time
                 const totalDuration = ui.transcript_timeline_totalduration;
                 const newTime = (newX / timelineRect.width) * totalDuration;
                 ui.player_time_dom.innerText = format_time(newTime);
-
                 // Set player currentTime to the position of the cursor
                 ui.player.currentTime = newTime;
             }
         }
-
         // Function to handle the end of dragging
         function stopDragging() {
             if (isDragging) {
@@ -334,7 +328,6 @@
                 ui.transcript_timeline_cursor.style.cursor = 'grab';
             }
         }
-
         // Mouse events
         ui.transcript_timeline_cursor.addEventListener('mouseover', () => {
             ui.transcript_timeline_cursor.style.cursor = 'grab';
@@ -344,9 +337,7 @@
         });
         ui.transcript_timeline_cursor.addEventListener('mousedown', startDragging);
         document.addEventListener('mousemove', dragging);
-        document.addEventListener('mouseup', stopDragging);
-
-        // Touch events
+        document.addEventListener('mouseup', stopDragging);  // FIXME: fails when mouseup on ui.player !        // Touch events
         ui.transcript_timeline.addEventListener('touchstart', startDragging);
         document.addEventListener('touchmove', dragging);
         document.addEventListener('touchend', stopDragging);
