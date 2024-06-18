@@ -75,10 +75,12 @@
         // Handle dynamic table height
         document.addEventListener('DOMContentLoaded', adjustTableHeight);
         window.addEventListener('resize', adjustTableHeight);
-        ui.player_time_total_dom.innerText = format_time(ui.player.duration);
         setup_player_sync();
         setup_keyboard_shortcuts();
     }
+    ui.player.addEventListener('loadeddata', e => {
+        ui.player_time_total_dom.innerText = format_time(ui.player.duration)
+    });
 
     // To be called everytime transcript changes
     function cache_transcript(transcript) {
