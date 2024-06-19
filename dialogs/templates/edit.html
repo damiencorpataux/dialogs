@@ -35,11 +35,19 @@
 
 <div class="d-flex flex-column flex-lg-row gap-1 gap-lg-5">
     <!-- Video player -->
-    <div class="col-lg-4 text-center">
-        <video id="player" class="mw-100" controls>
-            <source src={{ url_for('api_script_video', script_name=script.name) }} type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
+    <div id="leftpane" class="col-lg-4">
+        <div class="d-flex flex-column gap-3">
+            <div class="text-center">
+                <video id="player" class="mw-100" controls>
+                    <source src={{ url_for('api_script_video', script_name=script.name) }} type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="d-none d-lg-block">
+                <strong>Script Files</strong>
+                <div id="filelist" class="small mt-2"></div>
+            </div>
+        </div>
     </div>
     <!-- Transcript table -->
     <div class="flex-grow-1">
@@ -87,6 +95,7 @@
     ui.player = document.getElementById('player');
     ui.player_time_dom = document.getElementById('time_current');
     ui.player_time_total_dom = document.getElementById('time_total_video');
+    ui.filelist_dom = document.getElementById('filelist');
 
     // Initialize UX
     function init() {
@@ -142,7 +151,8 @@
     // User function to keep up-to-date the transcript table and timeline
     function display_transcript(transcript) {
         display_table(transcript);
-        display_timeline(transcript); // Also refresh the timeline
+        display_timeline(transcript);
+        display_filelist();
     }
 
     // Populate #transcript_table with a table containing the given transcript
@@ -229,6 +239,26 @@
         ui.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
         // Setup UX logic
         setup_timeline_cursor_drag();
+    }
+
+    // Display file list
+    function display_filelist() {
+        const script_url = "{{ url_for('api_script_files', script_name=script.name) }}";
+        fetch(script_url).then(
+            response => response.json()
+        ).then(filelist => {
+            let html = ''
+            for (filename of filelist) {
+                html += `
+                    <span class="text-nowrap">
+                        <i class="bi bi-file-earmark text-secondary ms-2"></i>
+                        <span class="text-muted">${filename}</span>
+                    </span>
+                `;
+            }
+            html += '';
+            ui.filelist_dom.innerHTML = html;
+        });
     }
 
     function format_time(seconds) {
@@ -459,6 +489,15 @@
         const tableTopPosition = ui.transcript_table.getBoundingClientRect().top;
         ui.transcript_table.style.overflow = 'scroll';
         ui.transcript_table.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
+        // Adjust metadata div height, only when viewport is below lg breakpoint (992px)
+        const leftpane_dom = document.getElementById('leftpane');
+        if (viewportWidth > 992) {
+            const topPosition = leftpane_dom.getBoundingClientRect().top;
+            leftpane_dom.style.overflow = 'scroll';
+            leftpane_dom.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
+        } else {
+            leftpane_dom.style.height = 'auto';
+        }
     }
 </script>
 

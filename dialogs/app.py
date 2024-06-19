@@ -90,6 +90,11 @@ def api_script_transcript_post(script_name):
     script.write_transcript(transcript)
     return api_script_transcript(script_name)
 
+@app.route("/api/script/<script_name>/files")
+def api_script_files(script_name):
+    script = core.Script(script_name)
+    return flask.jsonify(script.files)
+
 import collections
 @app.route('/api/script/<script_name>/log')
 @app.route('/api/script/<script_name>/log/<n>')

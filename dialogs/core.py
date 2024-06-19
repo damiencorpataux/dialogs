@@ -17,7 +17,7 @@ class Script:
     """
     scripts_path = os.path.join(config['backend']['workdir'], 'userdata', 'scripts')
 
-    def __init__(self, name, create=True) -> None:
+    def __init__(self, name, create=False) -> None:
         self.name = name
         if not os.path.exists(self.path):
             if create:
@@ -25,6 +25,12 @@ class Script:
             else:
                 raise ValueError(f'{self.__class__.__name__} "{name}" does not exist')
         self.log = self.setup_logger()
+
+    @property
+    def files(self):
+        return [
+            os.path.basename(filename)
+            for filename in glob.glob(os.path.join(self.path, '*'))]
 
     @property
     def path(self):
@@ -86,7 +92,7 @@ class Script:
     def ingest(cls, video_filename, name=None, overwrite=False):  # FIXME: arg replace -> overwrite (keep all files but overwrite video file)
         if not name:
             name = cls.create_name_from_filename(video_filename)
-        script = Script(name)
+        script = Script(name, create=True)
         if not overwrite and os.path.exists(video_filename):
             raise ValueError(f'Script with name "{name}" already exists')
         script.log.info('Ingesting to script "%s" from video file "%s"...', name, video_filename)

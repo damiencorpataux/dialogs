@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
-                const percentComplete = Math.min(90, e.loaded / e.total * 100);  // FIXME: While celery is not implemented in flask
+                const percentComplete = Math.min(90, e.loaded / e.total * 100);  // FIXME: Stop at 90% while celery is not implemented in flask
                 progressBar.style.width = percentComplete + '%';
                 progressBar.textContent = Math.round(percentComplete) + '%';
                 progressBar.setAttribute('aria-valuenow', Math.round(percentComplete));
