@@ -1,2 +1,4 @@
 backend:
-  workdir: '/tmp/dialog'
+  workdir: /tmp/dialog
+  redis_broker_url: redis://localhost:6379/0
+  redis_backend_url: redis://localhost:6379/0  # backend = broker, in our case

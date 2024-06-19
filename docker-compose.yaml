@@ -1,0 +1,37 @@
+services:
+  # api:
+  #   build: dialogs
+  #   depends_on:
+  #     - redis
+  #   environment:
+  #     - SCRIPT_NAME=${SCRIPT_NAME}
+  #   ports:
+  #     - "9999:9999"
+  #   networks:
+  #     - main
+  #   volumes:
+  #     - ${STORAGE_PATH_DOCKER}:/dialog-files
+
+  worker:
+    build: dialogs
+    depends_on:
+      - redis
+    networks:
+      - main
+    entrypoint: celery
+    command: -A wsgi.worker worker --loglevel=info
+    tty: true  # for colors in log, see https://github.com/docker/compose/issues/2231#issuecomment-165137408
+    volumes:
+      - ${STORAGE_PATH_DOCKER}:/tmp/dialog/  # FIXME
+      # - ${STORAGE_PATH_DOCKER}:/dialog-files
+
+  redis:
+    container_name: redis
+    image: redis  #:5.0.5  # FIXME: Too old
+    ports:
+      - "6379:6379"  # FIXME: Dev purpose: allow flask development server to connect from host
+    networks:
+      - main
+
+networks:
+  main: {}

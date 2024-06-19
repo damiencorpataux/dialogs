@@ -1,0 +1,23 @@
+uwsgi:
+  strict: true
+  uid: www-data
+  gid: www-data
+
+  mount: $(SCRIPT_NAME)=wsgi.py
+  callable: app
+  need-app: true
+  manage-script-name: true  # for url path prefix from proxy
+
+  processes: 5
+  master: true
+  single-interpreter: true
+  # max-worker-lifetime: 28800  # mysql wait_timeout, see https://github.unil.ch/dcorpata/decanat-archive-api/issues/3
+
+  http: 0.0.0.0:5000
+  buffer-size: 32768
+
+  # http-to: /tmp/uwsgi.sock
+
+  # socket: /tmp/uwsgi.socket
+  # chmod-sock: 664
+  # vacuum: true
