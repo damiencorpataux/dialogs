@@ -4,14 +4,16 @@ import yaml
 import json
 import time
 import os
+import logging
 
 app = flask.Flask(__name__)
+
 
 # UI Endpoints.
 
 @app.route("/")
 def ui():
-    return flask.render_template('index.html', scripts=core.Script.list())
+    return flask.render_template('index.html', script_list=core.Script.list())
 
 @app.route("/edit/<script_name>")
 def ui_script_edit(script_name):
@@ -19,7 +21,7 @@ def ui_script_edit(script_name):
 
 @app.route("/log/<script_name>")
 def ui_script_log(script_name):
-    return flask.render_template('log.html', script=core.Script(script_name))
+    return flask.render_template('log.html', script_name=script_name)
 
 # API Endpoints.
 
@@ -39,14 +41,17 @@ def api_script_post():
 
     if file and file.mimetype.startswith('video/'):
         tmp_file = os.path.join(UPLOAD_FOLDER, file.filename)
+        # script = core.Script(core.Script.create_name_from_filename(file.filename))
+        # tmp_file = os.path.join(script.path, 'video-original' + os.path.splitext(file.filename)[1])
         with open(tmp_file, 'wb') as f:
             for chunk in file.stream:
                 f.write(chunk)
         try:
-            core.Script.ingest(tmp_file)  # TODO: Launch ingest task using celery.
+            core.Script.ingest(tmp_file, overwrite=True)  # TODO: Launch ingest task using celery.
             os.remove(tmp_file)
         except Exception as e:
             return flask.jsonify({'error': str(e)}), 500
+
         return flask.jsonify({'message': 'File successfully uploaded'}), 200
     else:
         return flask.jsonify({'error': 'Invalid file type'}), 400
@@ -73,29 +78,17 @@ def api_script_transcript(script_name):
         os.path.dirname(script.transcript_filename),
         os.path.basename(script.transcript_filename))
 
-@app.route("/api/script/<script_name>/transcript", methods=["POST"])
+@app.route("/api/script/<script_name>/transcript", methods=["PATCH"])
 def api_script_transcript_post(script_name):
-    script = core.Script(script_name)
-
     if not flask.request.is_json:
         return flask.jsonify({"error": "Request body must be JSON"}), 400
-
-    data = flask.request.get_json()
-
+    transcript = flask.request.get_json()
     # TODO: Check if the data is a valid transcript
     # if not core.validate_transcript(data):
     #     return flask.jsonify({"error": "Invalid transcript data"}), 400
-
-    # Store the serialized data to disk with the given filename
-    transcript_json = json.dumps(data)
-    with open(script.transcript_filename, "w") as file:
-        file.write(transcript_json)
-
-    # Load the stored transcript from disk
-    with open(script.transcript_filename, "r") as file:
-        loaded_transcript = json.load(file)
-
-    return flask.jsonify(loaded_transcript)
+    script = core.Script(script_name)
+    script.write_transcript(transcript)
+    return api_script_transcript(script_name)
 
 import collections
 @app.route('/api/script/<script_name>/log')
@@ -103,7 +96,7 @@ import collections
 def api_script_log(script_name, n=None):
     def tail_file(filename, n=None):
         """Stream end of a text file like like `tail -f`."""
-        try:
+        try:  # FIXME: Is it necessary if everything is caught in hte Actual function ?
             with open(filename, 'r') as file:
                 if n is not None:
                     lines = collections.deque(file, maxlen=n)  # Read the last n lines
@@ -122,11 +115,14 @@ def api_script_log(script_name, n=None):
             yield "event: error\ndata: File not found\n\n"
         except Exception as e:
             print(e.__class__.__name__, e)
-            yield f"event: error\ndata: abc{str(e)}\n\n"
+            yield f"event: error\ndata: {str(e)}\n\n"
     # Actual function
-    log_filename = core.Script(script_name).log_filename
-    n = int(n) if n is not None else None  # cast n (received as string by flask)
-    tail_generator = tail_file(log_filename, n)
+    try:
+        log_filename = core.Script(script_name).log_filename
+        n = int(n) if n is not None else None  # cast n (received as string by flask)
+        tail_generator = tail_file(log_filename, n)
+    except Exception as e:
+        tail_generator = (error for error in (f"event: error\ndata: {str(e)}\n\n",))
     return flask.Response(tail_generator, mimetype='text/event-stream')
 
 if __name__ == '__main__':

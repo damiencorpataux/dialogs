@@ -4,11 +4,11 @@
 
 <div class="d-flex gap-3 align-items-baseline">
     <h3>
-        <i class="text-secondary pe-auto me-2" data-feather="eye"></i>
+        <i class="text-secondary pe-auto me-2" data-feather="activity" stroke-width="3"></i>
         Log
     </h3>
     <strong>
-        {{ script.name }}
+        {{ script_name }}
     </strong>
 </div>
 <div id="messages">
@@ -25,17 +25,19 @@
         background-color: var(--bs-gray-dark);
     }
 </style>
-<div id="log" class="mt-4"></div>
+<div id="log" class="small mt-4"></div>
 
 <script>
     // Stream log file in DOM
     const ui = {};
     ui.log = document.getElementById('log');
-    const source = new EventSource('{{ url_for("api_script_log", script_name=script.name) }}');
+    const source = new EventSource('{{ url_for("api_script_log", script_name=script_name) }}');
     source.addEventListener('message', function(event) {
-        ui.log.appendChild(document.createTextNode(event.data));
         ui.log.appendChild(document.createElement('br'));
-        ui.log.scrollTop = ui.log.scrollHeight;  // Auto-scroll to the bottom
+        ui.log.appendChild(document.createElement('br'));
+        ui.log.appendChild(document.createTextNode(event.data));
+        // Auto-scroll to the bottom
+        setTimeout(() => ui.log.scrollTop = ui.log.scrollHeight, 125);
     });
     source.addEventListener('error', function(event) {
         console.error("EventSource failed:", event);

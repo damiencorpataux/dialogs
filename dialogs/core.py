@@ -5,9 +5,11 @@ import json
 import glob
 import shutil
 import os
+import logging
 
 with open('./config.yaml', 'r') as file:
     config = yaml.safe_load(file)
+
 
 class Script:
     """
@@ -15,10 +17,14 @@ class Script:
     """
     scripts_path = os.path.join(config['backend']['workdir'], 'userdata', 'scripts')
 
-    def __init__(self, name) -> None:
+    def __init__(self, name, create=True) -> None:
         self.name = name
         if not os.path.exists(self.path):
-            os.makedirs(self.path, exist_ok=True)
+            if create:
+                os.makedirs(self.path, exist_ok=True)
+            else:
+                raise ValueError(f'{self.__class__.__name__} "{name}" does not exist')
+        self.log = self.setup_logger()
 
     @property
     def path(self):
@@ -44,6 +50,21 @@ class Script:
     # def script_filename(self):
     #     return os.path.join(self.path, 'file.txt')  # FIXME: The originally written script
 
+    def setup_logger(self):
+        logger = logging.getLogger(self.name)
+        logger.setLevel(logging.INFO)
+        # Create file handler
+        fh = logging.FileHandler(self.log_filename)
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s: %(message)s'))
+        logger.addHandler(fh)
+        # Create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s: %(name)s: %(message)s'))
+        logger.addHandler(ch)
+        return logger
+
     @classmethod
     def list(cls):
         return [
@@ -52,35 +73,44 @@ class Script:
 
     @classmethod
     def delete(cls, name):
-        shutil.rmtree(Script(name).path)
-        return name
+        script = Script(name)
+        script.log.info(f'Deleting script "{name}"')
+        shutil.rmtree(script.path)  # FIXME: Nothing should be auto-deleted !
+        return name                 #        Items should be deleted one by one by the user
+                                    #        and log.txt could be not deletable
+    @classmethod
+    def create_name_from_filename(cls, filename):
+        return os.path.basename(os.path.splitext(filename)[0])
 
     @classmethod
-    def ingest(cls, video_filename, name=None, replace=False):
+    def ingest(cls, video_filename, name=None, overwrite=False):  # FIXME: arg replace -> overwrite (keep all files but overwrite video file)
         if not name:
-            name = os.path.basename(os.path.splitext(video_filename)[0])
-            print(f'No name provided, using name "{name}"')
-        if name in cls.list():
-            if replace:
-                Script.delete(name)
-            else:
-                raise ValueError(f'Script with name "{name}" already exists')
-        print('Ingesting...', name, video_filename)
+            name = cls.create_name_from_filename(video_filename)
+        script = Script(name)
+        if not overwrite and os.path.exists(video_filename):
+            raise ValueError(f'Script with name "{name}" already exists')
+        script.log.info('Ingesting to script "%s" from video file "%s"...', name, video_filename)
         try:
-            script = Script(name)
             with open(video_filename, 'rb') as f:
-                script.write_video(f.read())
+                script.write_video_transcoded(f.read())
             script.extract_transcript()
         except Exception as e:
-            Script.delete(name)  # Clean aborted work
+            script.log.exception(e)
+            # Script.delete(name)  # FIXME: Don't auto-delete anything !
             raise
 
-    def write_video(self, video_binary):
-        print('Writing...', len(video_binary))
+    def write_transcript(self, transcript):
+        with open(self.transcript_filename, "w") as file:
+            json.dump(transcript, file)
+            # file.write(transcript_json)
+        self.log.info('Saved transcript to "%s"', self.transcript_filename)
+
+    def write_video_transcoded(self, video_binary):
+        self.log.info('Writing original video (%s bytes)...', len(video_binary))
         tmp_filename = self.video_filename + '-tmp'
         with open(tmp_filename, 'wb') as file:
             file.write(video_binary)
-        print('Transcoding...', self.video_filename)
+        self.log.info('Transcoding video to "%s"...', self.video_filename)
         ffmpeg_process = (
             ffmpeg.FFmpeg()
                 .option("y")
@@ -90,7 +120,7 @@ class Script:
         os.remove(tmp_filename)
 
     def extract_transcript(self, whisper_model='large'):
-        print('Preparing...')
+        self.log.info('Extracting audio to "%s"...', self.audio_filename)
         ffmpeg_process = (
             ffmpeg.FFmpeg()
                 .option("y")
@@ -102,13 +132,12 @@ class Script:
         # @ffmpeg_process.on("progress")
         # def on_progress(progress: ffmpeg.Progress):
         #     print(progress)
-        print('Extracting audio...', self.audio_filename)
         ffmpeg_process.execute()
-        print('Loading audio...')
+        self.log.info('Loading audio...')
         model = whisper.load_model(whisper_model)
-        print('Transcribing...', whisper_model)
+        self.log.info('Transcribing audio (model "%s")...', whisper_model)
         transcript = model.transcribe(self.audio_filename)  # TODO: use verbose=True to get progress ? https://github.com/openai/whisper/discussions/850#discussioncomment-7850096
-        print('Stripping transcript...')
+        self.log.info('Stripping transcript...')
         transcript = [
             {
                 "id": segment["id"],
@@ -118,9 +147,10 @@ class Script:
             }
             for segment in transcript.get("segments", [])
         ]
-        print('Writing stripped transcript...')
+        self.log.info('Writing stripped transcript...')
         with open(self.transcript_filename, 'w') as file:
             json.dump(transcript, file)
+        self.log.info('Ingestion successful !')
 
     def apply_transcript_corrections(self, corrections):
         pass  # TODO

@@ -128,7 +128,7 @@
     async function post_transcript(new_transcript) {
         const script_url = "{{ url_for('api_script_transcript_post', script_name=script.name) }}";
         const response = await fetch(script_url, {
-            method: 'POST',
+            method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json'
             },
