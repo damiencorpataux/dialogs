@@ -1,0 +1,66 @@
+{% extends "html" %}
+
+{% block content %}
+
+<div class="d-flex gap-3 align-items-baseline">
+    <h3>
+        <i class="text-secondary pe-auto me-2" data-feather="eye"></i>
+        Log
+    </h3>
+    <strong>
+        {{ script.name }}
+    </strong>
+</div>
+<div id="messages">
+    <div class="alert alert-sm alert-info">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        Tailing log file...
+    </div>
+</div>
+<style>
+    #log {
+        white-space: pre-wrap;
+        padding: 25px;
+        font-family: var(--bs-font-monospace);
+        background-color: var(--bs-gray-dark);
+    }
+</style>
+<div id="log" class="mt-4"></div>
+
+<script>
+    // Stream log file in DOM
+    const ui = {};
+    ui.log = document.getElementById('log');
+    const source = new EventSource('{{ url_for("api_script_log", script_name=script.name) }}');
+    source.addEventListener('message', function(event) {
+        ui.log.appendChild(document.createTextNode(event.data));
+        ui.log.appendChild(document.createElement('br'));
+        ui.log.scrollTop = ui.log.scrollHeight;  // Auto-scroll to the bottom
+    });
+    source.addEventListener('error', function(event) {
+        console.error("EventSource failed:", event);
+        document.getElementById('messages').innerHTML = `
+            <div class="alert alert-sm alert-danger">
+                <i class="bi bi-bug-fill me-2"></i>
+                <strong>Error:</strong>
+                ${event.data}
+                &mdash; <a href="" class="small">Try again</a>
+            </div>`;
+        source.close();
+    });
+
+    // Resize log div to fit page height
+    function adjust_dom_heights() {
+        const paddingBottom = 25;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        // Adjust log div height
+        const tableTopPosition = ui.log.getBoundingClientRect().top;
+        ui.log.style.overflow = 'scroll';
+        ui.log.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
+    }
+    document.addEventListener('DOMContentLoaded', adjust_dom_heights);
+    window.addEventListener('resize', adjust_dom_heights);
+
+</script>
+{% endblock %}

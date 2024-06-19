@@ -37,7 +37,7 @@
     <!-- Video player -->
     <div class="col-lg-4 text-center">
         <video id="player" class="mw-100" controls>
-            <source src={{ url_for('api_script_video', script_id=script.name) }} type="video/mp4">
+            <source src={{ url_for('api_script_video', script_name=script.name) }} type="video/mp4">
             Your browser does not support the video tag.
         </video>
     </div>
@@ -117,7 +117,7 @@
 
     // Fetch transcript from server
     async function get_transcript() {
-        const script_url = "{{ url_for('api_script_transcript', script_id=script.name) }}";
+        const script_url = "{{ url_for('api_script_transcript', script_name=script.name) }}";
         const response = await fetch(script_url);
         const transcript = await response.json();
         cache_transcript(transcript);
@@ -126,7 +126,7 @@
 
     // Post transcript on server
     async function post_transcript(new_transcript) {
-        const script_url = "{{ url_for('api_script_transcript_post', script_id=script.name) }}";
+        const script_url = "{{ url_for('api_script_transcript_post', script_name=script.name) }}";
         const response = await fetch(script_url, {
             method: 'POST',
             headers: {

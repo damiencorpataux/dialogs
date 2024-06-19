@@ -2,9 +2,12 @@ import core
 import flask
 import yaml
 import json
+import time
 import os
 
 app = flask.Flask(__name__)
+
+# UI Endpoints.
 
 @app.route("/")
 def ui():
@@ -14,11 +17,17 @@ def ui():
 def ui_script_edit(script_name):
     return flask.render_template('edit.html', script=core.Script(script_name))
 
+@app.route("/log/<script_name>")
+def ui_script_log(script_name):
+    return flask.render_template('log.html', script=core.Script(script_name))
+
+# API Endpoints.
+
 @app.route("/api/script")
 def api_script():
     return core.Script.list()
 
-UPLOAD_FOLDER = '/tmp'  # FIXME
+UPLOAD_FOLDER = '/tmp'  # FIXME: Make it configurable with a sensible default (use python module: tempdir ?)
 @app.route('/api/script', methods=['POST'])
 def api_script_post():
     if 'file' not in flask.request.files:
@@ -42,31 +51,31 @@ def api_script_post():
     else:
         return flask.jsonify({'error': 'Invalid file type'}), 400
 
-@app.route('/api/script/<script_id>', methods=['DELETE'])
-def api_script_delete(script_id):
+@app.route('/api/script/<script_name>', methods=['DELETE'])
+def api_script_delete(script_name):
     try:
-        core.Script.delete(script_id)
-        return flask.jsonify({'message': f'Script "{script_id}" successfully deleted'}), 200
+        core.Script.delete(script_name)
+        return flask.jsonify({'message': f'Script "{script_name}" successfully deleted'}), 200
     except Exception as e:
         return flask.jsonify({'error': str(e)}), 500
 
-@app.route("/api/script/<script_id>/video")
-def api_script_video(script_id):
-    script = core.Script(script_id)
+@app.route("/api/script/<script_name>/video")
+def api_script_video(script_name):
+    script = core.Script(script_name)
     return flask.send_from_directory(
         os.path.dirname(script.video_filename),
         os.path.basename(script.video_filename))
 
-@app.route("/api/script/<script_id>/transcript")
-def api_script_transcript(script_id):
-    script = core.Script(script_id)
+@app.route("/api/script/<script_name>/transcript")
+def api_script_transcript(script_name):
+    script = core.Script(script_name)
     return flask.send_from_directory(
         os.path.dirname(script.transcript_filename),
         os.path.basename(script.transcript_filename))
 
-@app.route("/api/script/<script_id>/transcript", methods=["POST"])
-def api_script_transcript_post(script_id):
-    script = core.Script(script_id)
+@app.route("/api/script/<script_name>/transcript", methods=["POST"])
+def api_script_transcript_post(script_name):
+    script = core.Script(script_name)
 
     if not flask.request.is_json:
         return flask.jsonify({"error": "Request body must be JSON"}), 400
@@ -87,6 +96,38 @@ def api_script_transcript_post(script_id):
         loaded_transcript = json.load(file)
 
     return flask.jsonify(loaded_transcript)
+
+import collections
+@app.route('/api/script/<script_name>/log')
+@app.route('/api/script/<script_name>/log/<n>')
+def api_script_log(script_name, n=None):
+    def tail_file(filename, n=None):
+        """Stream end of a text file like like `tail -f`."""
+        try:
+            with open(filename, 'r') as file:
+                if n is not None:
+                    lines = collections.deque(file, maxlen=n)  # Read the last n lines
+                    for line in lines:
+                        yield f"data: {line}\n\n"
+                    # Move to the end of the file
+                    file.seek(0, os.SEEK_END)
+                while True:
+                    line = file.readline()
+                    if not line:
+                        time.sleep(0.1)  # Sleep briefly
+                        continue
+                    yield f"data: {line}\n\n"
+        except FileNotFoundError as e:
+            print(e.__class__.__name__, e)
+            yield "event: error\ndata: File not found\n\n"
+        except Exception as e:
+            print(e.__class__.__name__, e)
+            yield f"event: error\ndata: abc{str(e)}\n\n"
+    # Actual function
+    log_filename = core.Script(script_name).log_filename
+    n = int(n) if n is not None else None  # cast n (received as string by flask)
+    tail_generator = tail_file(log_filename, n)
+    return flask.Response(tail_generator, mimetype='text/event-stream')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9999, debug=True)

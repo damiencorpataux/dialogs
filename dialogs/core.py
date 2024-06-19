@@ -36,6 +36,10 @@ class Script:
     def transcript_filename(self):
         return os.path.join(self.path, 'transcript.json')
 
+    @property
+    def log_filename(self):
+        return os.path.join(self.path, 'log.txt')
+
     # @property
     # def script_filename(self):
     #     return os.path.join(self.path, 'file.txt')  # FIXME: The originally written script

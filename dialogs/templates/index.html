@@ -9,8 +9,8 @@
 <ul class="list-unstyled">
     {% for script_name in scripts %}
     <li class="ms-4 mb-3">
-        <a href="{{url_for('ui_script_edit', script_name=script_name)}}">{{script_name}}</a>
-        <button class="delete-btn btn btn-sm" data-script-name="{{script_name}}">
+        <a href="{{ url_for('ui_script_edit', script_name=script_name) }}">{{ script_name}} </a>
+        <button class="delete-btn btn btn-sm" data-script-name="{{ script_name}}  ">
             <i class="text-danger" width="16" data-feather="trash-2"></i>
         </button>
     </li>
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function deleteTranscript(scriptName) {
         const xhr = new XMLHttpRequest();
-        xhr.open('DELETE', `{{ url_for("api_script_delete", script_id="") }}/${scriptName}`, true);
+        xhr.open('DELETE', `{{ url_for("api_script_delete", script_name="") }}/${scriptName}`, true);
         xhr.onload = () => {
             alert(xhr.responseText);
             location.reload();
