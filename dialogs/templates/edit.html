@@ -5,19 +5,19 @@
 <!-- Page header -->
 <style>
 @media (max-width: 992px) {
-    #script_header_title {
+    #project_header_title {
         max-height: 4rlh;
         overflow: scroll;
     }
 }
 </style>
-<div id="script_header_title" class="mb-3 mb-lg-4">
+<div id="project_header_title" class="mb-3 mb-lg-4">
     <h2 class="d-inline">
         <i class="text-secondary pe-auto me-2" data-feather="film"></i>
-        {{ script.name }}
+        {{ project.name }}
     </h2>
     <span class="small text-secondary ms-3">
-        &mdash;&nbsp;<strong>Metadata:</strong> {{ script.__dict__ }}
+        &mdash;&nbsp;<strong>Metadata:</strong> {{ project.__dict__ }}
     </span>
 </div>
 <!-- Transcript timeline
@@ -39,12 +39,12 @@
         <div class="d-flex flex-column gap-3">
             <div class="text-center">
                 <video id="player" class="mw-100" controls>
-                    <source src={{ url_for('api_script_video', script_name=script.name) }} type="video/mp4">
+                    <source src={{ url_for('api_project_video', project_name=project.name) }} type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
             <div class="d-none d-lg-block">
-                <strong>Script Files</strong>
+                <strong>Project Files</strong>
                 <div id="filelist" class="small mt-2"></div>
             </div>
         </div>
@@ -126,8 +126,8 @@
 
     // Fetch transcript from server
     async function get_transcript() {
-        const script_url = "{{ url_for('api_script_transcript', script_name=script.name) }}";
-        const response = await fetch(script_url);
+        const project_url = "{{ url_for('api_project_transcript', project_name=project.name) }}";
+        const response = await fetch(project_url);
         const transcript = await response.json();
         cache_transcript(transcript);
         return transcript;
@@ -135,8 +135,8 @@
 
     // Post transcript on server
     async function post_transcript(new_transcript) {
-        const script_url = "{{ url_for('api_script_transcript_post', script_name=script.name) }}";
-        const response = await fetch(script_url, {
+        const project_url = "{{ url_for('api_project_transcript_post', project_name=project.name) }}";
+        const response = await fetch(project_url, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json'
@@ -243,8 +243,8 @@
 
     // Display file list
     function display_filelist() {
-        const script_url = "{{ url_for('api_script_files', script_name=script.name) }}";
-        fetch(script_url).then(
+        const project_url = "{{ url_for('api_project_files', project_name=project.name) }}";
+        fetch(project_url).then(
             response => response.json()
         ).then(filelist => {
             let html = ''

@@ -8,13 +8,13 @@
         Log
     </h3>
     <strong>
-        {{ script_name }}
+        {{ project_name }}
     </strong>
 </div>
 <div id="messages">
     <div class="alert alert-sm alert-info">
         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-        Script activity...
+        Project activity...
     </div>
 </div>
 <style>
@@ -31,7 +31,7 @@
     // Stream log file in DOM
     const ui = {};
     ui.log = document.getElementById('log');
-    const source = new EventSource('{{ url_for("api_script_log", script_name=script_name) }}');
+    const source = new EventSource('{{ url_for("api_project_log", project_name=project_name) }}');
     source.addEventListener('message', function(event) {
         ui.log.appendChild(document.createElement('br'));
         ui.log.appendChild(document.createElement('br'));

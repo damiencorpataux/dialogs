@@ -7,10 +7,10 @@
     Transcripts
 </h3>
 <ul class="list-unstyled">
-    {% for script_name in script_list %}
+    {% for project_name in project_list %}
     <li class="ms-4 mb-3">
-        <a href="{{ url_for('ui_script_edit', script_name=script_name) }}">{{ script_name}} </a>
-        <button class="delete-btn btn btn-sm" data-script-name="{{ script_name}}  ">
+        <a href="{{ url_for('ui_project_edit', project_name=project_name) }}">{{ project_name}} </a>
+        <button class="delete-btn btn btn-sm" data-project-name="{{ project_name}}  ">
             <i class="text-danger" width="16" data-feather="trash-2"></i>
         </button>
     </li>
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Handle file upload using xhr, with progress bar
     function uploadFile(file) {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '{{ url_for("api_script_post") }}', true);
+        xhr.open('POST', '{{ url_for("api_project_post") }}', true);
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
@@ -125,16 +125,16 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.delete-btn').forEach(button => {
         button.addEventListener('click', function () {
-            const scriptName = this.getAttribute('data-script-name');
-            if (confirm(`${scriptName}\n\nAre you sure to delete ?`)) {
-                deleteTranscript(scriptName);
+            const projectName = this.getAttribute('data-project-name');
+            if (confirm(`${projectName}\n\nAre you sure to delete ?`)) {
+                deleteTranscript(projectName);
             }
         });
     });
 
-    function deleteTranscript(scriptName) {
+    function deleteTranscript(projectName) {
         const xhr = new XMLHttpRequest();
-        xhr.open('DELETE', `{{ url_for("api_script_delete", script_name="") }}/${scriptName}`, true);
+        xhr.open('DELETE', `{{ url_for("api_project_delete", project_name="") }}/${projectName}`, true);
         xhr.onload = () => {
             alert(xhr.responseText);
             location.reload();

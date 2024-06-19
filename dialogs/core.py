@@ -11,11 +11,11 @@ with open('./config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 
-class Script:
+class Project:
     """
-    A Movie Script.
+    A Movie Project.
     """
-    scripts_path = os.path.join(config['backend']['workdir'], 'userdata', 'scripts')
+    projects_path = os.path.join(config['backend']['workdir'], 'userdata', 'projects')
 
     def __init__(self, name, create=False) -> None:
         self.name = name
@@ -34,7 +34,7 @@ class Script:
 
     @property
     def path(self):
-        return os.path.join(self.scripts_path, self.name)
+        return os.path.join(self.projects_path, self.name)
 
     @property
     def video_filename(self):
@@ -53,8 +53,8 @@ class Script:
         return os.path.join(self.path, 'log.txt')
 
     # @property
-    # def script_filename(self):
-    #     return os.path.join(self.path, 'file.txt')  # FIXME: The originally written script
+    # def project_filename(self):
+    #     return os.path.join(self.path, 'file.txt')  # FIXME: The originally written project
 
     def setup_logger(self):
         logger = logging.getLogger(self.name)
@@ -75,13 +75,13 @@ class Script:
     def list(cls):
         return [
             os.path.basename(os.path.normpath(path))
-            for path in glob.glob(os.path.join(cls.scripts_path, '*'))]  # FIXME: Must only return directories
+            for path in glob.glob(os.path.join(cls.projects_path, '*'))]  # FIXME: Must only return directories
 
     @classmethod
     def delete(cls, name):
-        script = Script(name)
-        script.log.info(f'Deleting script "{name}"')
-        shutil.rmtree(script.path)  # FIXME: Nothing should be auto-deleted !
+        project = Project(name)
+        project.log.info(f'Deleting project "{name}"')
+        shutil.rmtree(project.path)  # FIXME: Nothing should be auto-deleted !
         return name                 #        Items should be deleted one by one by the user
                                     #        and log.txt could be not deletable
     @classmethod
@@ -92,17 +92,17 @@ class Script:
     def ingest(cls, video_filename, name=None, overwrite=False):  # FIXME: arg replace -> overwrite (keep all files but overwrite video file)
         if not name:
             name = cls.create_name_from_filename(video_filename)
-        script = Script(name, create=True)
+        project = Project(name, create=True)
         if not overwrite and os.path.exists(video_filename):
-            raise ValueError(f'Script with name "{name}" already exists')
-        script.log.info('Ingesting to script "%s" from video file "%s"...', name, video_filename)
+            raise ValueError(f'Project with name "{name}" already exists')
+        project.log.info('Ingesting to project "%s" from video file "%s"...', name, video_filename)
         try:
             with open(video_filename, 'rb') as f:
-                script.write_video_transcoded(f.read())
-            script.extract_transcript()
+                project.write_video_transcoded(f.read())
+            project.extract_transcript()
         except Exception as e:
-            script.log.exception(e)
-            # Script.delete(name)  # FIXME: Don't auto-delete anything !
+            project.log.exception(e)
+            # Project.delete(name)  # FIXME: Don't auto-delete anything !
             raise
 
     def write_transcript(self, transcript):
