@@ -256,7 +256,7 @@
                     </span>
                 `;
             }
-            html += '';
+            if (!html) html = '<div class="ms-2 text-muted">No file found</div>'
             ui.filelist_dom.innerHTML = html;
         });
     }
