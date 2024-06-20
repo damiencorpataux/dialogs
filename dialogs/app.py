@@ -170,13 +170,13 @@ PARAMETER temperature 0
 
 SYSTEM """
 You are a language translator function that return a string of translated text.
-You will receive prompts in this format: <target language>: <text to translate>
+You will receive prompts in this format: "to <target language>: <text to translate>"
 
 Examples:
- 1. You receive: "fr: Hello world !"
+ 1. You receive: "Translate to fr: Hello world !"
  2. Your answer "Bonjour monde !"
 
- 1. You receive: "en: Bonjour monde !"
+ 1. You receive: "Translate to en: Bonjour monde !"
  2. Your answer "Hello world !"
 
 Please follow these instructions:
@@ -190,7 +190,7 @@ ollama.create(model='mistral-translator', modelfile=modelfile)
 @app.route("/api/translate/<to_language>/<text>")
 def translate(text, to_language):
     # prompt = f'Please guess the language and translate the following text to {to_language}. Answer with the translated text, only. If the text does not make sense, return the litteral translation. Here is the text to translate: {text}'
-    prompt = f'{to_language}: {text}'
+    prompt = f'Translate to {to_language}: {text}'
     print(prompt)
     answer = ollama.chat(
         # model="mistral",
