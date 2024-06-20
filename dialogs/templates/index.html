@@ -26,7 +26,7 @@
     </li>
     {% else %}
     <li class="text-muted">
-        No project found. Please upload a video.
+        Please upload a video to start a project.
     </li>
     {% endfor %}
 </ul>
@@ -63,20 +63,29 @@
 </div>
 
 <script>
+let f;
 // Handle drop zone
 document.addEventListener('DOMContentLoaded', function () {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const progressBar = document.getElementById('progress-bar');
+    function check_file(files) {
+        // const extensions = ['mp4', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'webm'];
+        // const is_video_extension = filename => new RegExp(`\\.(${extensions.join('|')})$`, 'i').test(filename);
+        // const is_valid = files.length && files[0].type.startsWith('video/') || is_video_extension(files[0].name);
+        const is_valid = files.length && files[0].type.startsWith('video/');
+        if (!is_valid) {
+            alert(`Please upload a valid video file (${files[0].type} is not supported).`);
+        }
+        return is_valid;
+    }
 
     // Handle click: trigger file selector and upload file
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
         const files = fileInput.files;
-        if (files.length && files[0].type.startsWith('video/')) {
+        if (check_file(files)) {
             uploadFile(files[0]);
-        } else {
-            alert('Please upload a valid video file.');
         }
     });
 
@@ -92,10 +101,8 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         dropZone.classList.remove('dragover');
         const files = e.dataTransfer.files;
-        if (files.length && files[0].type.startsWith('video/')) {
+        if (check_file(files)) {
             uploadFile(files[0]);
-        } else {
-            alert('Please upload a valid video file.');
         }
     });
 

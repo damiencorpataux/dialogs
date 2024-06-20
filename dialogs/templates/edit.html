@@ -262,8 +262,12 @@
     }
 
     function format_time(seconds) {
-        return seconds.toFixed(2);
-        // return parseFloat(seconds.toFixed(2));
+        try {
+            return seconds.toFixed(2);
+        } catch (e) {
+            console.warn('Could not format time');
+            return seconds
+        }
     }
 
     // Sync player time with table/timeline display
