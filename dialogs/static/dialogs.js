@@ -33,7 +33,7 @@ class HTMLElementDialogs extends HTMLElement {
 
 class HTMLElementDialogsActivity extends HTMLElementDialogs {
 
-    static _observed = [...this._observed, 'maxlines'];
+    static _observed = [...this._observed, 'maxlines', 'reverse'];
 
     _setup() {
         this.shadowRoot.innerHTML += `
@@ -49,20 +49,36 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
             this.shadowRoot.innerHTML = '';
         });
         source.addEventListener('message', event => {
-            if (this.shadowRoot.innerHTML) {
-                this.shadowRoot.appendChild(document.createElement('br'));
+            const isReverse = this.hasAttribute('reverse');
+            // Add new line
+            if (isReverse) {
+                if (this.shadowRoot.innerHTML) {
+                    this.shadowRoot.prepend(document.createElement('br'));
+                }
+                this.shadowRoot.prepend(document.createTextNode(event.data));
+            } else {
+                if (this.shadowRoot.innerHTML) {
+                    this.shadowRoot.append(document.createElement('br'));
+                }
+                this.shadowRoot.append(document.createTextNode(event.data));
             }
-            this.shadowRoot.appendChild(document.createTextNode(event.data));
+            // Remove lines to display the number of lines specified by maxlines
             if (this.maxlines !== undefined) {
-                // Calculate the total number of lines (each line has a <br> element after it)
-                const totalLines = Math.ceil(this.shadowRoot.childNodes.length / 2);
-                // Remove nodes to display the number of lines specified by maxlines
-                while (this.shadowRoot.childNodes.length > this.maxlines*2) {
-                    if (this.shadowRoot.firstChild.nodeType === Node.TEXT_NODE) {
-                        this.shadowRoot.removeChild(this.shadowRoot.firstChild); // Remove text node
-                    }
-                    if (this.shadowRoot.firstChild.nodeType === Node.ELEMENT_NODE && this.shadowRoot.firstChild.tagName === 'BR') {
-                        this.shadowRoot.removeChild(this.shadowRoot.firstChild); // Remove <br> element
+                while (this.shadowRoot.childNodes.length > this.maxlines * 2) {
+                    if (isReverse) {
+                        if (this.shadowRoot.lastChild.nodeType === Node.TEXT_NODE) {
+                            this.shadowRoot.removeChild(this.shadowRoot.lastChild); // Remove text node
+                        }
+                        if (this.shadowRoot.lastChild.nodeType === Node.ELEMENT_NODE && this.shadowRoot.lastChild.tagName === 'BR') {
+                            this.shadowRoot.removeChild(this.shadowRoot.lastChild); // Remove <br> element
+                        }
+                    } else {
+                        if (this.shadowRoot.firstChild.nodeType === Node.TEXT_NODE) {
+                            this.shadowRoot.removeChild(this.shadowRoot.firstChild); // Remove text node
+                        }
+                        if (this.shadowRoot.firstChild.nodeType === Node.ELEMENT_NODE && this.shadowRoot.firstChild.tagName === 'BR') {
+                            this.shadowRoot.removeChild(this.shadowRoot.firstChild); // Remove <br> element
+                        }
                     }
                 }
             }

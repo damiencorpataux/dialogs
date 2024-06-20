@@ -25,47 +25,21 @@
         background-color: var(--bs-gray-dark);
     }
 </style>
-<div id="log" class="small mt-4"></div>
+<div id="log" class="small mt-4"><dialogs-activity reverse project="{{ project_name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
 
 <script>
-    // Stream log file in DOM
-    const ui = {};
-    ui.log = document.getElementById('log');
-    const source = new EventSource('{{ url_for("api_project_log", project_name=project_name) }}');
-    window.addEventListener('beforeunload', event => {
-        source.close();
-    });
-    source.addEventListener('message', function(event) {
-        ui.log.appendChild(document.createElement('br'));
-        ui.log.appendChild(document.createElement('br'));
-        ui.log.appendChild(document.createTextNode(event.data));
-        // Auto-scroll to the bottom
-        setTimeout(() => ui.log.scrollTop = ui.log.scrollHeight, 125);
-    });
-    source.addEventListener('error', function(event) {
-        console.error("EventSource failed:", event);
-        document.getElementById('messages').innerHTML = `
-            <div class="alert alert-sm alert-danger">
-                <i class="bi bi-bug-fill me-2"></i>
-                <strong>Error:</strong>
-                ${event.data}
-                &mdash; <a href="" class="small">Try again</a>
-            </div>`;
-        source.close();
-    });
-
     // Resize log div to fit page height
     function adjust_dom_heights() {
+        const log = document.getElementById('log');
         const paddingBottom = 25;
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
         // Adjust log div height
-        const tableTopPosition = ui.log.getBoundingClientRect().top;
-        ui.log.style.overflow = 'scroll';
-        ui.log.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
+        const tableTopPosition = log.getBoundingClientRect().top;
+        log.style.overflow = 'scroll';
+        log.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
     }
     document.addEventListener('DOMContentLoaded', adjust_dom_heights);
     window.addEventListener('resize', adjust_dom_heights);
-
 </script>
 {% endblock %}
