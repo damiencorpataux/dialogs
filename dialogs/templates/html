@@ -15,7 +15,7 @@
         </style>
     </head>
     <body data-bs-theme="dark" tabindex="-1">  <!-- tabindex to disable mobile chrome 'search on tap' -->
-        <div class="container-fluid px-4 pt-1 pt-lg-4">
+        <div class="container-fluid px-4 pt-4">
             <div class="d-flex flex-row gap-3 align-items-baseline">
                 <i class="brand pe-auto" data-feather="mic" stroke-width="3" width="32" height="32"></i>
                 <h1>
@@ -26,7 +26,7 @@
                 </div>
             </div>
 
-            <hr class="my-lg-4 my-2">
+            <hr class="mt-2 mb-4">
 
             {% block content %}{% endblock %}
         </div>

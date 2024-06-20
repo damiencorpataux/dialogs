@@ -9,13 +9,15 @@
 <ul class="list-unstyled">
     {% for project_name in project_list %}
     <li class="ms-4 mb-2">
-        <a href="{{ url_for('ui_project_edit', project_name=project_name) }}">{{ project_name }}</a>
-        <button class="delete-btn btn btn-sm" data-project-name="{{ project_name}}  ">
-            <i class="text-danger" width="16" data-feather="trash-2"></i>
-        </button>
+        <a href="{{ url_for('ui_project_edit', project_name=project_name) }}" class="link-underline link-underline-opacity-25">
+            {{ project_name }}
+        </a>
+        <span class="delete-btn ms-2" role="button" data-project-name="{{ project_name}}  ">
+            <i class="text-danger" width="12" data-feather="trash-2"></i>
+        </span>
         <div class="small" title="Latest activity">
             <a href="{{ url_for('ui_project_log', project_name=project_name) }}" class="link-secondary link-underline link-underline-opacity-0">
-                <i class="bi bi-activity text-muted ms-2"></i>
+                <i class="bi bi-activity small text-muted ms-2"></i>
                 View activity
                 <!-- FIXME: We cannot open too many concurrent HTTP/1 connections: make a signle endpoint that merge all logs -->
                 <!-- <dialogs-activity project="{{ project_name }}" maxlines="1" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity> -->
