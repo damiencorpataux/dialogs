@@ -18,12 +18,14 @@
         <div class="small" title="Latest activity">
             <a href="{{ url_for('ui_project_log', project_name=project_name) }}" class="link-secondary link-underline link-underline-opacity-0">
                 <i class="bi bi-activity small text-muted ms-2"></i>
-                View activity
+                <!-- View activity -->
                 <!-- FIXME: We cannot open too many concurrent HTTP/1 connections: make a signle endpoint that merge all logs -->
-                <!-- <dialogs-activity project="{{ project_name }}" maxlines="1" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity> -->
+                <dialogs-activity project="{{ project_name }}" maxlines="1" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity>
             </a>
         </div>
     </li>
+    {% else %}
+    <li>No project found. Please upload a video.</li>
     {% endfor %}
 </ul>
 
@@ -106,10 +108,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
-                const percentComplete = Math.min(90, e.loaded / e.total * 100);  // FIXME: Stop at 90% while celery is not implemented in flask
+                const percentComplete = e.loaded / e.total * 100;
                 progressBar.style.width = percentComplete + '%';
                 progressBar.textContent = Math.round(percentComplete) + '%';
                 progressBar.setAttribute('aria-valuenow', Math.round(percentComplete));
+                if (percentComplete >= 100) {
+                    location.reload();
+                }
             }
         });
 
