@@ -59,21 +59,20 @@ class Project:
     def setup_logger(self):
         logger = logging.getLogger(self.name)
         logger.setLevel(logging.INFO)
-        # Check if logger singleton already has handlers to avoid adding multiple handlers
-        if not logger.handlers:
-            # Create file handler
-            fh = logging.FileHandler(self.log_filename)
-            fh.setLevel(logging.INFO)
-            fh.setFormatter(logging.Formatter(
-                '%(asctime)s - %(levelname)s: %(message)s',
-                '%Y-%m-%d %H:%M:%S'))
-            logger.addHandler(fh)
-            # Create console handler
-            ch = logging.StreamHandler()
-            ch.setLevel(logging.INFO)
-            ch.setFormatter(logging.Formatter(
-                '%(asctime)s - %(levelname)s: %(name)s: %(message)s'))
-            logger.addHandler(ch)
+        logger.handlers.clear()  # Ensure not duplicate handlers
+        # Create file handler
+        fh = logging.FileHandler(self.log_filename)
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter(
+            '%(asctime)s - %(levelname)s: %(message)s',
+            '%Y-%m-%d %H:%M:%S'))
+        logger.addHandler(fh)
+        # Create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(logging.Formatter(
+            '%(asctime)s - %(levelname)s: %(name)s: %(message)s'))
+        logger.addHandler(ch)
         return logger
 
     @classmethod

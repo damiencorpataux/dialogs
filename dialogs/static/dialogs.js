@@ -36,9 +36,7 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
     static _observed = [...this._observed, 'maxlines', 'reverse'];
 
     _setup() {
-        this.shadowRoot.innerHTML += `
-            No activity found
-        `;
+        this.shadowRoot.innerHTML += `No activity found`;
         let url = `${this.api}/project/${encodeURIComponent(this.project)}/log`;
         url += (this.maxlines !== undefined) ? `/${this.maxlines}` : '';
         const source = new EventSource(url);
@@ -86,10 +84,7 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
         });
         source.addEventListener('error', event => {
             // TODO: Add fire event 'error' containing `event.data` to allow user to eg. display alert
-            this.shadowRoot.innerHTML = `
-                <i class="bi bi-bug-fill me-2"></i>
-                <strong>Error:</strong> ${event.data || 'Could not load activity'}
-            `;
+            this.shadowRoot.innerHTML = `<strong>Error:</strong> ${event.data || 'Could not load activity'}`;
             console.error("Could not load activity", event);
             source.close();
         });
