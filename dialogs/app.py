@@ -107,8 +107,7 @@ def api_project_log(project_name, n=None):
                     lines = collections.deque(file, maxlen=n)  # Read the last n lines
                     for line in lines:
                         yield f"data: {line}\n\n"
-                    # Move to the end of the file
-                    file.seek(0, os.SEEK_END)
+                    file.seek(0, os.SEEK_END)  # Move to the end of the file
                 while True:
                     line = file.readline()
                     if not line:
