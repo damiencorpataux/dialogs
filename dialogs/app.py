@@ -99,6 +99,10 @@ import collections
 @app.route('/api/project/<project_name>/log')
 @app.route('/api/project/<project_name>/log/<n>')
 def api_project_log(project_name, n=None):
+    # FIXME: It looks like, after the browser has opened n connections,
+    #        the log lines are duplicated n times...
+    #        Or maybe just use sh.tail(...) as in https://stackoverflow.com/a/12523119
+    #        which is not very inter-operable.
     def tail_file(filename, n=None):
         """Stream end of a text file like like `tail -f`."""
         try:  # FIXME: Is it necessary if everything is caught in hte Actual function ?
