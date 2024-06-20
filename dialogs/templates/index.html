@@ -69,11 +69,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const progressBar = document.getElementById('progress-bar');
+    // Factorize file type checking
+    // FIXME: Duplicate with backend logic, but fails fast (before actual upload)
     function check_file(files) {
-        // const extensions = ['mp4', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'webm'];
-        // const is_video_extension = filename => new RegExp(`\\.(${extensions.join('|')})$`, 'i').test(filename);
-        // const is_valid = files.length && files[0].type.startsWith('video/') || is_video_extension(files[0].name);
-        const is_valid = files.length && files[0].type.startsWith('video/');
+        const allowed_extra_extensions = ['mkv'];
+        const is_video_extension = filename => new RegExp(`\\.(${allowed_extra_extensions.join('|')})$`, 'i').test(filename);
+        const is_valid = (
+            files.length
+            && files[0].type.startsWith('video/')
+            || files[0].type.startsWith('audio/')
+            || is_video_extension(files[0].name));
         if (!is_valid) {
             alert(`Please upload a valid video file (${files[0].type} is not supported).`);
         }

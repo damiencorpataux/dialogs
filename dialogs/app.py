@@ -29,32 +29,51 @@ def ui_project_log(project_name):
 def api_project():
     return core.Project.list()
 
-UPLOAD_FOLDER = '/tmp'  # FIXME: Make it configurable with a sensible default (use python module: tempdir ?)
 @app.route('/api/project', methods=['POST'])
 def api_project_post():
-    if 'file' not in flask.request.files:
-        return flask.jsonify({'error': 'No file part'}), 400
+        if 'file' not in flask.request.files:
+            return flask.jsonify({'error': 'No file part'}), 400
 
-    file = flask.request.files['file']
-    if file.filename == '':
-        return flask.jsonify({'error': 'No selected file'}), 400
+        file = flask.request.files['file']
+        if file.filename == '':
+            return flask.jsonify({'error': 'No selected file'}), 400
 
-    if file and file.mimetype.startswith('video/'):
-        tmp_file = os.path.join(UPLOAD_FOLDER, file.filename)
-        # project = core.Project(core.Project.create_name_from_filename(file.filename))
-        # tmp_file = os.path.join(project.path, 'video-original' + os.path.splitext(file.filename)[1])
-        with open(tmp_file, 'wb') as f:
-            for chunk in file.stream:
-                f.write(chunk)
-        try:
-            core.Project.ingest(tmp_file, overwrite=True)  # TODO: Launch ingest task using celery.
-            os.remove(tmp_file)
-        except Exception as e:
-            return flask.jsonify({'error': str(e)}), 500
-
-        return flask.jsonify({'message': 'File successfully uploaded'}), 200
-    else:
-        return flask.jsonify({'error': 'Invalid file type'}), 400
+        # Validate file
+        allowed_extra_extensions = ['mkv']
+        file_is_valid = (
+            file
+            and file.mimetype.startswith('video/')
+            or file.mimetype.startswith('audio/')
+            or os.path.splitext(file.filename)[1][1:] in allowed_extra_extensions)
+        if not file_is_valid:
+            if file and file.mimetype:
+                error_message = f'Invalid file type ({file.mimetype} is not supported)'
+            else:
+                error_message = 'Invalid file type'
+            return flask.jsonify({'error': error_message}), 400
+        else:
+            # Upload file in project directory
+            # TODO: Factorize this in core.Project.ingest_binary(project_name, file_binary)
+            project = core.Project(
+                core.Project.create_name_from_filename(file.filename),
+                create=True)
+            tmp_file = os.path.join(
+                project.path,
+                'upload' + os.path.splitext(file.filename)[1])
+            project.log.info(f'Writing temporary original file to %s', tmp_file)
+            # Actual upload
+            with open(tmp_file, 'wb') as f:
+                for chunk in file.stream:
+                    f.write(chunk)
+            try:
+                # Start ingestion process
+                core.Project.ingest(tmp_file, name=project.name, overwrite=True)  # TODO: Launch ingest task using celery.
+                return flask.jsonify({'message': 'File successfully uploaded'}), 200
+            except Exception as e:
+                return flask.jsonify({'error': str(e)}), 500
+            finally:
+                print(f'Removing temporary original file to "{tmp_file}"')
+                os.remove(tmp_file)
 
 @app.route('/api/project/<project_name>', methods=['DELETE'])
 def api_project_delete(project_name):
