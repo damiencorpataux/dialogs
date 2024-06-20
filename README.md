@@ -4,6 +4,8 @@ Ra&D
 =
 - Products
   - https://www.descript.com/
+  - https://frame.io/
+  - https://www.google.com/search?q=text+based+editing+adobe+premiere+pro
 
 - Features
   - Speaker Diarization

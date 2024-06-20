@@ -513,6 +513,37 @@
             leftpane_dom.style.height = 'auto';
         }
     }
+
+    // Translation !
+    async function translate() {
+        const url_base = "{{ url_for('ui', _external=True) }}/api/translate";
+        const table = ui.transcript_table
+        const rows = table.querySelectorAll('tbody tr');
+        for (const row of rows) {
+            const cell = row.cells[3];
+            const text = cell.innerText;
+            const to_language = 'english';
+            const url = `${url_base}/${to_language}/${encodeURIComponent(text)}`;
+            console.info('Translating...', url)
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const translatedText = await response.text();
+                    console.log(translatedText)
+                    cell.innerText = translatedText;
+                    cell.style.backgroundColor = 'darkgrey'
+                } else {
+                    console.error(`Failed to translate text: ${text}`);
+                }
+            } catch (error) {
+                console.error(`Error during translation request for text: ${text}`, error);
+            }
+        }
+    }
+    document.querySelector('[data-feather=align-left]').parentElement.addEventListener('click', () => {
+        console.log('Launch translation');
+        translate().then((x) => console.log('translated', x));
+    });
 </script>
 
 {% endblock %}

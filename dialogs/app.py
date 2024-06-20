@@ -115,6 +115,7 @@ def api_project_files(project_name):
     project = core.Project(project_name)
     return flask.jsonify(project.files)
 
+
 import collections
 @app.route('/api/project/<project_name>/log')
 @app.route('/api/project/<project_name>/log/<n>')
@@ -158,6 +159,50 @@ def api_project_log(project_name, n=None):
     except Exception as e:
         tail_generator = (error for error in (f"event: error\ndata: {str(e)}\n\n",))
     return flask.Response(flask.stream_with_context(tail_generator), mimetype='text/event-stream')
+
+# Ollama translator :)
+import ollama
+modelfile='''
+FROM mistral
+
+# set the temperature to 1 [higher is more creative, lower is more coherent]
+PARAMETER temperature 0
+
+SYSTEM """
+You are a language translator function that return a string of translated text.
+You will receive prompts in this format: <target language>: <text to translate>
+
+Examples:
+ 1. You receive: "fr: Hello world !"
+ 2. Your answer "Bonjour monde !"
+
+ 1. You receive: "en: Bonjour monde !"
+ 2. Your answer "Hello world !"
+
+Please follow these instructions:
+- Return only the translated text, without anything else. No comments.
+- Please silently guess the text language.
+- If the text to translate is not clear, return a litteral translation.
+ 
+"""
+'''
+ollama.create(model='mistral-translator', modelfile=modelfile)
+@app.route("/api/translate/<to_language>/<text>")
+def translate(text, to_language):
+    # prompt = f'Please guess the language and translate the following text to {to_language}. Answer with the translated text, only. If the text does not make sense, return the litteral translation. Here is the text to translate: {text}'
+    prompt = f'{to_language}: {text}'
+    print(prompt)
+    answer = ollama.chat(
+        # model="mistral",
+        model="mistral-translator",
+        messages = [{
+            "role": "user",
+            'content': prompt
+        }]
+    )
+    print(answer)
+    return answer['message']['content']
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9999, debug=True, threaded=True)
