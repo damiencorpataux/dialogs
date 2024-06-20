@@ -126,26 +126,36 @@
 
     // Fetch transcript from server
     async function get_transcript() {
-        const project_url = "{{ url_for('api_project_transcript', project_name=project.name) }}";
-        const response = await fetch(project_url);
-        const transcript = await response.json();
-        cache_transcript(transcript);
-        return transcript;
+        try {
+            const project_url = "{{ url_for('api_project_transcript', project_name=project.name) }}";
+            const response = await fetch(project_url);
+            const transcript = await response.json();
+            cache_transcript(transcript);
+            return transcript;
+        } catch (e) {
+            console.error('XHR Error:', e);
+            return []  // FIXME: Handle xhr errors at a higher, factorized level
+        }
     }
 
     // Post transcript on server
     async function post_transcript(new_transcript) {
-        const project_url = "{{ url_for('api_project_transcript_post', project_name=project.name) }}";
-        const response = await fetch(project_url, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(new_transcript)
-        });
-        const transcript = await response.json();
-        cache_transcript(transcript);
-        return transcript;
+        try {
+            const project_url = "{{ url_for('api_project_transcript_post', project_name=project.name) }}";
+            const response = await fetch(project_url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(new_transcript)
+            });
+            const transcript = await response.json();
+            cache_transcript(transcript);
+            return transcript;
+        } catch (e) {
+            console.error('XHR Error:', e);
+            return []  // FIXME: Handle xhr errors at a higher, factorized level
+        }
     }
 
     // User function to keep up-to-date the transcript table and timeline
@@ -200,7 +210,7 @@
     function display_timeline(transcript) {
         ui.transcript_timeline.innerHTML = ''; // Clear any existing content
 
-        const totalDuration = transcript[transcript.length - 1].end;
+        const totalDuration = transcript[transcript.length - 1]?.end;
         ui.transcript_timeline_totalduration = totalDuration;  // Store total duration globally
 
         transcript.forEach(segment => {
