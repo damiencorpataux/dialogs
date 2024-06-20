@@ -101,8 +101,7 @@ class Project:
             raise ValueError(f'Project with name "{name}" already exists')
         project.log.info('Ingesting to project "%s" from video file "%s"...', name, video_filename)
         try:
-            with open(video_filename, 'rb') as f:
-                project.write_video_transcoded(f.read())
+            project.write_video_transcoded(video_filename)
             project.extract_transcript()
         except Exception as e:
             project.log.exception(e)
@@ -112,23 +111,16 @@ class Project:
     def write_transcript(self, transcript):
         with open(self.transcript_filename, "w") as file:
             json.dump(transcript, file)
-            # file.write(transcript_json)
-        print('X'*50)
         self.log.info('Saved transcript to "%s"', self.transcript_filename)
 
-    def write_video_transcoded(self, video_binary):
-        self.log.info('Writing original video (%s bytes)...', len(video_binary))
-        tmp_filename = self.video_filename + '-tmp'
-        with open(tmp_filename, 'wb') as file:
-            file.write(video_binary)
+    def write_video_transcoded(self, video_filename):
         self.log.info('Transcoding video to "%s"...', self.video_filename)
         ffmpeg_process = (
             ffmpeg.FFmpeg()
                 .option("y")
-                .input(tmp_filename)
+                .input(video_filename)
                 .output(self.video_filename))
         ffmpeg_process.execute()
-        os.remove(tmp_filename)
 
     def extract_transcript(self, whisper_model='large'):
         self.log.info('Extracting audio to "%s"...', self.audio_filename)
