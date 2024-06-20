@@ -273,7 +273,7 @@
             ui.player_time_dom.innerText = format_time(this.currentTime);
             // Update the position of the cursor line in timeline
             const totalDuration = ui.transcript_timeline_totalduration;
-            const currentTimePercent = (ui.player.currentTime / totalDuration) * 100;
+            const currentTimePercent = Math.min(1, ui.player.currentTime / totalDuration) * 100;  // The end time of the timeline is the last segment end time.
             ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
             // Update segments highlighting in transcript table
             ui.segments_dom_table.forEach(row => {
