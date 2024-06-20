@@ -3,4 +3,3 @@ python-ffmpeg
 pyyaml
 flask
 celery
-reddis
