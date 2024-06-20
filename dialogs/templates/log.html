@@ -32,6 +32,9 @@
     const ui = {};
     ui.log = document.getElementById('log');
     const source = new EventSource('{{ url_for("api_project_log", project_name=project_name) }}');
+    window.addEventListener('beforeunload', event => {
+        source.close();
+    });
     source.addEventListener('message', function(event) {
         ui.log.appendChild(document.createElement('br'));
         ui.log.appendChild(document.createElement('br'));

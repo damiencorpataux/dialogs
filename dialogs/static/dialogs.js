@@ -42,6 +42,9 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
         let url = `${this.api}/project/${encodeURIComponent(this.project)}/log`;
         url += (this.maxlines !== undefined) ? `/${this.maxlines}` : '';
         const source = new EventSource(url);
+        window.addEventListener('beforeunload', event => {
+            source.close();
+        });
         source.addEventListener('open', event => {
             this.shadowRoot.innerHTML = '';
         });

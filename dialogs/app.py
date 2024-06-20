@@ -122,6 +122,8 @@ def api_project_log(project_name, n=None):
                         time.sleep(0.1)  # Sleep briefly
                         continue
                     yield f"data: {line}\n\n"
+        except GeneratorExit as e:
+            print('Client disconnected', e)  # FIXME: Never reached ?
         except FileNotFoundError as e:
             print(e.__class__.__name__, e)
             yield "event: error\ndata: File not found\n\n"
@@ -135,7 +137,7 @@ def api_project_log(project_name, n=None):
         tail_generator = tail_file(log_filename, n)
     except Exception as e:
         tail_generator = (error for error in (f"event: error\ndata: {str(e)}\n\n",))
-    return flask.Response(tail_generator, mimetype='text/event-stream')
+    return flask.Response(flask.stream_with_context(tail_generator), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=9999, debug=True)
+    app.run(host='0.0.0.0', port=9999, debug=True, threaded=True)
