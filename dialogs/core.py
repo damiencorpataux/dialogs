@@ -28,9 +28,10 @@ class Project:
 
     @property
     def files(self):
+        search_path = os.path.join(glob.escape(self.path), '*')
         return [
             os.path.basename(filename)
-            for filename in glob.glob(os.path.join(self.path, '*'))]
+            for filename in glob.glob(search_path)]
 
     @property
     def path(self):
