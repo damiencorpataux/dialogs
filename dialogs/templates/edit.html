@@ -122,6 +122,8 @@
         document.addEventListener('DOMContentLoaded', adjust_dom_heights);
         window.addEventListener('resize', adjust_dom_heights);
         ui.activity_dom.addEventListener('loaded', adjust_dom_heights);
+        // Confirm page exit
+        window.onbeforeunload = () => is_editing() ? 'Are you sure you want to quit ?' : null;;
     }
     ui.player.addEventListener('loadeddata', e => {
         ui.player_time_total_dom.innerText = format_time(ui.player.duration)
@@ -288,6 +290,7 @@
         });
     }
 
+    // Helper to factorize format seconds
     function format_time(seconds) {
         try {
             return seconds.toFixed(2);
@@ -295,6 +298,11 @@
             console.warn('Could not format time');
             return seconds
         }
+    }
+
+    // Helper to factorize return true if page is in edit mode
+    function is_editing() {
+        return document.querySelectorAll('[contenteditable=true]').length;
     }
 
     // Sync player time with table/timeline display
@@ -444,7 +452,7 @@
     function setup_keyboard_shortcuts() {
         document.addEventListener('keydown', function(e) {
             const editing = document.querySelectorAll('[contenteditable=true]');
-            if (editing.length) {  // Disable global shortcuts if editing
+            if (is_editing()) {  // Disable global shortcuts if editing
                 return;
             }
             if (e.key == ' ') {
@@ -524,7 +532,7 @@
         const leftpane_dom = document.getElementById('leftpane');
         if (viewportWidth > 992) {
             const topPosition = leftpane_dom.getBoundingClientRect().top;
-            leftpane_dom.style.overflow = 'scroll';
+            leftpane_dom.style.overflow = 'hidden';
             leftpane_dom.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
         } else {
             leftpane_dom.style.height = 'auto';
