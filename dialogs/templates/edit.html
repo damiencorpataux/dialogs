@@ -115,7 +115,15 @@
     function init() {
         get_transcript().then(transcript => {
             display_transcript(transcript);
+        }).catch(e => {
+            ui.transcript_table.innerHTML = `
+                <p class="m-3 text-muted">
+                    Transcript not (yet) ready, Please watch the project activity.
+                    Then, reload the page.
+                </p>
+            `;
         });
+        display_filelist();
         setup_player_sync();
         setup_keyboard_shortcuts();
         // Handle dynamic table height
@@ -151,6 +159,7 @@
             return transcript;
         } catch (e) {
             console.error('XHR Error:', e);
+            cache_transcript([]);
             return []  // FIXME: Handle xhr errors at a higher, factorized level
         }
     }
@@ -179,7 +188,6 @@
     function display_transcript(transcript) {
         display_table(transcript);
         display_timeline(transcript);
-        display_filelist();
     }
 
     // Populate #transcript_table with a table containing the given transcript
