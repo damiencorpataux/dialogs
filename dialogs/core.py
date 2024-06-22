@@ -57,20 +57,20 @@ class Project:
     # def project_filename(self):
     #     return os.path.join(self.path, 'file.txt')  # FIXME: The originally written project
 
-    def setup_logger(self):
+    def setup_logger(self, level=logging.DEBUG):
         logger = logging.getLogger(self.name)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(level)
         logger.handlers.clear()  # Ensure not duplicate handlers
         # Create file handler
         fh = logging.FileHandler(self.log_filename)
-        fh.setLevel(logging.INFO)
+        fh.setLevel(level)
         fh.setFormatter(logging.Formatter(
             '%(asctime)s - %(levelname)s: %(message)s',
             '%Y-%m-%d %H:%M:%S'))
         logger.addHandler(fh)
         # Create console handler
         ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
+        ch.setLevel(level)
         ch.setFormatter(logging.Formatter(
             '%(asctime)s - %(levelname)s: %(name)s: %(message)s'))
         logger.addHandler(ch)
@@ -116,12 +116,28 @@ class Project:
 
     def write_video_transcoded(self, video_filename):
         self.log.info('Transcoding video to "%s"...', self.video_filename)
-        ffmpeg_process = (
-            ffmpeg.FFmpeg()
-                .option("y")
-                .input(video_filename)
-                .output(self.video_filename))
-        ffmpeg_process.execute()
+        width = 480
+        try:
+            ffmpeg_process = (
+                ffmpeg.FFmpeg()
+                    .option("y")
+                    .input(video_filename)
+                    .output(
+                        self.video_filename))#,    # FIXME: Official doc doesn't work: https://github.com/jonghwanhyeon/python-ffmpeg?tab=readme-ov-file#synchronous-api
+                        # {"codec:v": "libx264"},  #        Use the other lib named 'ffmpeg-python' ?
+                        # vf="scale=480:-1"))
+            # @ffmpeg_process.on("start")
+            # def on_start(arguments: list[str]):
+            #     print("arguments:", arguments)
+            @ffmpeg_process.on("progress")
+            def on_progress(progress: ffmpeg.Progress):
+                message = ('Transcoding: %s', progress)
+                print(message)
+                # self.log.debug(message)  # TODO: Too verbose, limit loggin rate, use eg: round(progress.seconds/10) % 10
+            ffmpeg_process.execute()
+        except Exception as e:
+            self.log.exception(e)
+            raise
 
     def extract_transcript(self, whisper_model='large'):
         self.log.info('Extracting audio to "%s"...', self.audio_filename)
@@ -130,17 +146,11 @@ class Project:
                 .option("y")
                 .input(self.video_filename)
                 .output(self.audio_filename))
-        # @ffmpeg_process.on("start")
-        # def on_start(arguments: list[str]):
-        #     print("arguments:", arguments)
-        # @ffmpeg_process.on("progress")
-        # def on_progress(progress: ffmpeg.Progress):
-        #     print(progress)
         ffmpeg_process.execute()
         self.log.info('Loading audio...')
         model = whisper.load_model(whisper_model)
         self.log.info('Transcribing audio (model "%s")...', whisper_model)
-        transcript = model.transcribe(self.audio_filename)  # TODO: use verbose=True to get progress ? https://github.com/openai/whisper/discussions/850#discussioncomment-7850096
+        transcript = model.transcribe(self.audio_filename, verbose=True)  # TODO: or use progress implementation from that geek, which is not secure: https://github.com/MadFishEo/mad-whisper-progress?tab=readme-ov-file#python-usage
         self.log.info('Stripping transcript...')
         transcript = [
             {

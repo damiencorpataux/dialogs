@@ -68,13 +68,13 @@ def api_project_post():
             try:
                 # Start ingestion process
                 core.Project.ingest(tmp_file, name=project.name, overwrite=True)  # TODO: Launch ingest task using celery.
+                project.log.info('Ready !')  # FIXME: Remove this once refactored (see TODO above)
                 return flask.jsonify({'message': 'File successfully uploaded'}), 200
             except Exception as e:
                 return flask.jsonify({'error': str(e)}), 500
             finally:
-                project.log.info(f'Removing temporary original file to "{tmp_file}"')
+                project.log.debug(f'Removing temporary original file to "{tmp_file}"')
                 os.remove(tmp_file)
-                project.log.info('Ready !')  # FIXME: Remove this once refactored (see TODO above)
 
 @app.route('/api/project/<project_name>', methods=['DELETE'])
 def api_project_delete(project_name):
