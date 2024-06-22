@@ -44,8 +44,12 @@
                 </video>
             </div>
             <div class="d-none d-lg-block">
-                <strong>Project Files</strong>
+                <strong> Files</strong>
                 <div id="filelist" class="small mt-2"></div>
+            </div>
+            <div class="d-none d-lg-block">
+                <strong>Activity</strong>
+                <div id="log" class="small text-muted font-monospace"><dialogs-activity reverse project="{{ project.name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
             </div>
         </div>
     </div>
@@ -96,17 +100,19 @@
     ui.player_time_dom = document.getElementById('time_current');
     ui.player_time_total_dom = document.getElementById('time_total_video');
     ui.filelist_dom = document.getElementById('filelist');
+    ui.activity_dom = document.querySelector('dialogs-activity').parentElement
 
     // Initialize UX
     function init() {
         get_transcript().then(transcript => {
             display_transcript(transcript);
         });
+        setup_player_sync();
+        setup_keyboard_shortcuts();
         // Handle dynamic table height
         document.addEventListener('DOMContentLoaded', adjust_dom_heights);
         window.addEventListener('resize', adjust_dom_heights);
-        setup_player_sync();
-        setup_keyboard_shortcuts();
+        ui.activity_dom.addEventListener('loaded', adjust_dom_heights);
     }
     ui.player.addEventListener('loadeddata', e => {
         ui.player_time_total_dom.innerText = format_time(ui.player.duration)
@@ -268,6 +274,8 @@
             }
             if (!html) html = '<div class="ms-2 text-muted">No file found</div>'
             ui.filelist_dom.innerHTML = html;
+        }).finally(() => {
+            adjust_dom_heights();
         });
     }
 
@@ -512,6 +520,15 @@
         } else {
             leftpane_dom.style.height = 'auto';
         }
+        // Adjust activity height
+        const activity = ui.activity_dom;
+        if (viewportWidth > 992) {
+            const topPosition = activity.getBoundingClientRect().top;
+            activity.style.overflow = 'scroll';
+            activity.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
+        } else {
+            activity.style.height = 'auto';
+        }
     }
 
     // Translation !
@@ -522,7 +539,7 @@
         for (const row of rows) {
             const cell = row.cells[3];
             const text = cell.innerText;
-            const to_language = 'french';
+            const to_language = 'english';
             const url = `${url_base}/${to_language}/${encodeURIComponent(text)}`;
             console.info('Translating...', url)
             try {

@@ -46,6 +46,7 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
         source.addEventListener('open', event => {
             this.shadowRoot.innerHTML = '';
         });
+        let loaded = false;
         source.addEventListener('message', event => {
             const isReverse = this.hasAttribute('reverse');
             // Add new line
@@ -80,7 +81,10 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
                     }
                 }
             }
-            // TODO: Add fire event 'message' to allow user to eg. scroll to bottom
+            if (!loaded) {
+                this.dispatchEvent(new Event('loaded'));  // Fire once after first message received
+                loaded = true;
+            }
         });
         source.addEventListener('error', event => {
             // TODO: Add fire event 'error' containing `event.data` to allow user to eg. display alert

@@ -35,9 +35,9 @@
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
         // Adjust log div height
-        const tableTopPosition = log.getBoundingClientRect().top;
+        const topPosition = log.getBoundingClientRect().top;
         log.style.overflow = 'scroll';
-        log.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
+        log.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
     }
     document.addEventListener('DOMContentLoaded', adjust_dom_heights);
     window.addEventListener('resize', adjust_dom_heights);
