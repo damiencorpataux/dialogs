@@ -557,14 +557,14 @@
     }
 
     // Translation !
-    async function translate() {
+    async function translate(to_language) {
+        to_language = to_language || 'english';
         const url_base = "{{ url_for('ui', _external=True) }}/api/translate";
         const table = ui.transcript_table
         const rows = table.querySelectorAll('tbody tr');
         for (const row of rows) {
             const cell = row.cells[3];
             const text = cell.innerText;
-            const to_language = 'english';
             const url = `${url_base}/${to_language}/${encodeURIComponent(text)}`;
             console.info('Translating...', url)
             try {
@@ -583,8 +583,9 @@
         }
     }
     document.querySelector('[data-feather=align-left]').parentElement.addEventListener('click', () => {
+        const to_language = prompt('Translate to wchich language ?\n\nEg. french, english, spanish, etc.')
         console.log('Launch translation');
-        translate().then((x) => console.log('translated', x));
+        translate(to_language).then((x) => console.log('translated', x));
     });
 </script>
 
