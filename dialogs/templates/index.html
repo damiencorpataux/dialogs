@@ -8,7 +8,7 @@
 </h3>
 <ul class="list-unstyled ms-4">
     {% for project_name in project_list %}
-    <li class="mb-2">
+    <li class="mb-3">
         <a href="{{ url_for('ui_project_edit', project_name=project_name) }}" class="link-underline link-underline-opacity-25">
             {{ project_name }}
         </a>
@@ -20,6 +20,12 @@
                 <i class="bi bi-activity small text-secondary ms-2"></i>
                 <!-- View activity -->
                 <!-- FIXME: We cannot open too many concurrent HTTP/1 connections: make a signle endpoint that merge all logs -->
+                <style>
+                    dialogs-activity::part(line) {
+                        display: inline;
+                        font-size: 85%;
+                    }
+                </style>
                 <dialogs-activity project="{{ project_name }}" maxlines="1" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity>
             </a>
         </div>
@@ -34,7 +40,7 @@
 <!-- Drag and drop area for upload -->
 <h3 class="mt-5">
     <i class="text-secondary pe-auto me-2" data-feather="upload"></i>
-    Upload new video for transcript
+    Upload video
 </h3>
 <style>
     #drop-zone {
