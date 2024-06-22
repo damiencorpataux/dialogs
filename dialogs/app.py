@@ -66,15 +66,22 @@ def api_project_post():
                 for chunk in file.stream:
                     f.write(chunk)
             try:
+                exc = None
+                success = False
                 # Start ingestion process
                 core.Project.ingest(tmp_file, name=project.name, overwrite=True)  # TODO: Launch ingest task using celery.
-                project.log.info('Ready !')  # FIXME: Remove this once refactored (see TODO above)
+                success = True
                 return flask.jsonify({'message': 'File successfully uploaded'}), 200
             except Exception as e:
+                exc = e
                 return flask.jsonify({'error': str(e)}), 500
             finally:
                 project.log.debug(f'Removing temporary original file to "{tmp_file}"')
                 os.remove(tmp_file)
+                if success:
+                    project.log.info('Ready !')  # FIXME: Remove this once refactored (see TODO above)
+                else:
+                    project.log.info('Error: %s', e)  # FIXME: Remove this once refactored (see TODO above)
 
 @app.route('/api/project/<project_name>', methods=['DELETE'])
 def api_project_delete(project_name):
@@ -130,7 +137,8 @@ def api_project_log(project_name, n=None):
     #             tail_generator = (f"data: {line}\n\n" for line in tail)
     def tail_file(filename, n=None):
         """Stream end of a text file like like `tail -f`."""
-        try:  # FIXME: Is it necessary if everything is caught in hte Actual function ?
+        # TODO: Factorize this in propert core.Project.log
+        try:
             with open(filename, 'r') as file:
                 if n is not None:
                     lines = collections.deque(file, maxlen=n)  # Read the last n lines

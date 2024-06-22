@@ -133,7 +133,7 @@ class Project:
             def on_progress(progress: ffmpeg.Progress):
                 message = ('Transcoding: %s', progress)
                 print(message)
-                # self.log.debug(message)  # TODO: Too verbose, limit loggin rate, use eg: round(progress.seconds/10) % 10
+                # self.log.debug(*message)  # TODO: Too verbose, limit loggin rate, use eg: round(progress.seconds/10) % 10
             ffmpeg_process.execute()
         except Exception as e:
             self.log.exception(e)
