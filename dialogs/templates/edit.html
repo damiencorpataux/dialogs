@@ -33,17 +33,17 @@
 </style>
 <div id="transcript_timeline" class="mb-2 mb-lg-4"></div>
 
-<div class="d-flex flex-column flex-lg-row gap-1 gap-lg-4">
+<div class="d-flex flex-column flex-lg-row gap-1 gap-lg-5">
     <!-- Video player -->
-    <div id="leftpane" class="col-lg-3">
-        <div class="d-flex flex-column gap-3">
+    <div id="leftpane" class="col-lg-4">
+        <div class="d-flex flex-column gap-5">
             <div class="text-center">
                 <video id="player" class="mw-100" controls>
                     <source src={{ url_for('api_project_video', project_name=project.name) }} type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
-            <div class="d-none d-lg-block mt-5">
+            <div class="d-none d-lg-block">
                 <h5>Files</h5>
                 <div id="filelist" class="small ms-2"></div>
             </div>
