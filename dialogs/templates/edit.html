@@ -33,9 +33,9 @@
 </style>
 <div id="transcript_timeline" class="mb-2 mb-lg-4"></div>
 
-<div class="d-flex flex-column flex-lg-row gap-1 gap-lg-5">
+<div class="d-flex flex-column flex-lg-row gap-1 gap-lg-4">
     <!-- Video player -->
-    <div id="leftpane" class="col-lg-4">
+    <div id="leftpane" class="col-lg-3">
         <div class="d-flex flex-column gap-3">
             <div class="text-center">
                 <video id="player" class="mw-100" controls>
@@ -43,12 +43,12 @@
                     Your browser does not support the video tag.
                 </video>
             </div>
-            <div class="d-none d-lg-block">
-                <strong> Files</strong>
-                <div id="filelist" class="small mt-2"></div>
+            <div class="d-none d-lg-block mt-5">
+                <h5>Files</h5>
+                <div id="filelist" class="small ms-2"></div>
             </div>
             <div class="d-none d-lg-block">
-                <strong>Activity</strong>
+                <h5>Activity</h5>
                 <style>
                     dialogs-activity::part(line) {
                         padding-bottom: .75lh;
@@ -58,7 +58,7 @@
                         color: var(--bs-secondary-text-emphasis);
                     }
                 </style>
-                <div id="log" class="small text-secondary font-monospace"><dialogs-activity reverse project="{{ project.name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
+                <div id="log" class="small text-secondary font-monospace ms-2"><dialogs-activity reverse project="{{ project.name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
             </div>
         </div>
     </div>
@@ -277,8 +277,8 @@
             let html = ''
             for (filename of filelist) {
                 html += `
-                    <span class="text-nowrap">
-                        <i class="bi bi-file-earmark text-secondary ms-2"></i>
+                    <span class="text-nowrap me-2">
+                        <i class="bi bi-file-earmark text-secondary"></i>
                         <span class="text-muted">${filename}</span>
                     </span>
                 `;
