@@ -50,16 +50,18 @@ class HTMLElementDialogsActivity extends HTMLElementDialogs {
         source.addEventListener('message', event => {
             const isReverse = this.hasAttribute('reverse');
             // Add new line
+            // const line = document.createTextNode(event.data);
+            const line = document.createElement('div');
+            line.innerText = event.data;
+            line.part = 'line';
             if (isReverse) {
                 if (this.shadowRoot.innerHTML) {
-                    this.shadowRoot.prepend(document.createElement('br'));
                 }
-                this.shadowRoot.prepend(document.createTextNode(event.data));
+                this.shadowRoot.prepend(line);
             } else {
                 if (this.shadowRoot.innerHTML) {
-                    this.shadowRoot.append(document.createElement('br'));
                 }
-                this.shadowRoot.append(document.createTextNode(event.data));
+                this.shadowRoot.append(line);
             }
             // Remove lines to display the number of lines specified by maxlines
             if (this.maxlines !== undefined) {

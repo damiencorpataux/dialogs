@@ -49,7 +49,16 @@
             </div>
             <div class="d-none d-lg-block">
                 <strong>Activity</strong>
-                <div id="log" class="small text-muted font-monospace"><dialogs-activity reverse project="{{ project.name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
+                <style>
+                    dialogs-activity::part(line) {
+                        padding-bottom: .75lh;
+                    }
+                    /* dialogs-activity::part(line):first-of-type,  /* FIXME: Selecting first part does not work */
+                    dialogs-activity:hover {
+                        color: var(--bs-secondary-text-emphasis);
+                    }
+                </style>
+                <div id="log" class="small text-secondary font-monospace"><dialogs-activity reverse project="{{ project.name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
             </div>
         </div>
     </div>

@@ -18,14 +18,11 @@
     </div>
 </div>
 <style>
-    #log {
-        white-space: pre-wrap;
-        padding: 25px;
-        font-family: var(--bs-font-monospace);
-        background-color: var(--bs-gray-dark);
+    dialogs-activity::part(line) {
+        padding-bottom: .75lh;
     }
 </style>
-<div id="log" class="small mt-4"><dialogs-activity reverse project="{{ project_name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
+<div id="log" class="small font-monospace p-3 mt-4"><dialogs-activity reverse project="{{ project_name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
 
 <script>
     // Resize log div to fit page height
