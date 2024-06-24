@@ -17,6 +17,13 @@ python3 -m app
 Open http://localhost:9999/
 
 
+Components
+-
+- **Core module:** Implementation of transcription project features
+- **REST API:** Exposition of the core as REST endpoints, using flask
+- **UI:** Plain HTML/JS, for prototyping
+
+
 Ra&D
 -
 - Products
