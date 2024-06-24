@@ -1,0 +1,42 @@
+{% extends "html" %}
+
+{% block content %}
+
+<div class="d-flex gap-lg-3 align-items-baseline flex-column flex-lg-row">
+    <h3>
+        <i class="text-secondary pe-auto me-2" data-feather="activity" stroke-width="3"></i>
+        Project Activity
+    </h3>
+    <strong>
+        {{ project_name }}
+    </strong>
+</div>
+<div id="messages">
+    <div class="alert alert-sm alert-info">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        Following log...
+    </div>
+</div>
+<style>
+    dialogs-activity::part(line) {
+        padding-bottom: .75lh;
+    }
+</style>
+<div id="log" class="small font-monospace p-3 mt-4"><dialogs-activity reverse project="{{ project_name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
+
+<script>
+    // Resize log div to fit page height
+    function adjust_dom_heights() {
+        const log = document.getElementById('log');
+        const paddingBottom = 25;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        // Adjust log div height
+        const topPosition = log.getBoundingClientRect().top;
+        log.style.overflow = 'scroll';
+        log.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
+    }
+    document.addEventListener('DOMContentLoaded', adjust_dom_heights);
+    window.addEventListener('resize', adjust_dom_heights);
+</script>
+{% endblock %}

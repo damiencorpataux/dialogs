@@ -1,0 +1,185 @@
+{% extends "html" %}
+
+{% block content %}
+
+<h3>
+    <i class="text-secondary pe-auto me-2" data-feather="film"></i>
+    Projects
+</h3>
+<ul class="list-unstyled ms-4">
+    {% for project_name in project_list %}
+    <li class="mb-3">
+        <a href="{{ url_for('ui_project_edit', project_name=project_name) }}" class="link-underline link-underline-opacity-25">
+            {{ project_name }}
+        </a>
+        <span class="delete-btn ms-2" role="button" data-project-name="{{ project_name}}  ">
+            <i class="text-danger" width="12" data-feather="trash-2"></i>
+        </span>
+        <div class="small" title="Latest activity">
+            <a href="{{ url_for('ui_project_log', project_name=project_name) }}" class="text-muted link-underline link-underline-opacity-0">
+                <i class="bi bi-activity small text-secondary ms-2"></i>
+                <!-- View activity -->
+                <!-- FIXME: We cannot open too many concurrent HTTP/1 connections: make a signle endpoint that merge all logs -->
+                <style>
+                    dialogs-activity::part(line) {
+                        display: inline;
+                        font-size: 85%;
+                    }
+                </style>
+                <dialogs-activity project="{{ project_name }}" maxlines="1" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity>
+            </a>
+        </div>
+    </li>
+    {% else %}
+    <li class="text-muted">
+        Please upload a video to start a project.
+    </li>
+    {% endfor %}
+</ul>
+
+<!-- Drag and drop area for upload -->
+<h3 class="mt-5">
+    <i class="text-secondary pe-auto me-2" data-feather="upload"></i>
+    Upload video
+</h3>
+<style>
+    #drop-zone {
+        border-radius: 10px;
+        border: 2px dashed var(--bs-secondary);
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+    }
+    #drop-zone:hover {
+        border-color: var(--bs-link-color);
+    }
+    #drop-zone.dragover {
+        border-color: var(--brand);
+    }
+</style>
+<div>
+    <div class="text-center text-muted mx-4" id="drop-zone">
+        Drop video files here or click to upload
+        <div class="progress mt-3">
+            <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+    </div>
+    <input type="file" id="file-input" accept="video/*" class="d-none">
+</div>
+
+<script>
+let f;
+// Handle drop zone
+document.addEventListener('DOMContentLoaded', function () {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const progressBar = document.getElementById('progress-bar');
+    // Factorize file type checking
+    // FIXME: Duplicate with backend logic, but fails fast (before actual upload)
+    function check_file(files) {
+        const allowed_extra_extensions = ['mkv'];
+        const is_video_extension = filename => new RegExp(`\\.(${allowed_extra_extensions.join('|')})$`, 'i').test(filename);
+        const is_valid = (
+            files.length
+            && files[0].type.startsWith('video/')
+            || files[0].type.startsWith('audio/')
+            || is_video_extension(files[0].name));
+        if (!is_valid) {
+            alert(`Please upload a valid video file (${files[0].type} is not supported).`);
+        }
+        return is_valid;
+    }
+
+    // Handle click: trigger file selector and upload file
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+        const files = fileInput.files;
+        if (check_file(files)) {
+            uploadFile(files[0]);
+        }
+    });
+
+    // Handle drop file: upload file
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover')
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (check_file(files)) {
+            uploadFile(files[0]);
+        }
+    });
+
+    // Prevent default drag and drop behavior on the entire document
+    document.addEventListener('dragover', (e) => { e.preventDefault(); });
+    document.addEventListener('drop', (e) => { e.preventDefault(); });
+
+    // Handle file upload using xhr, with progress bar
+    function uploadFile(file) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{{ url_for("api_project_post") }}', true);
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = e.loaded / e.total * 100;
+                progressBar.style.width = percentComplete + '%';
+                progressBar.textContent = Math.round(percentComplete) + '%';
+                progressBar.setAttribute('aria-valuenow', Math.round(percentComplete));
+                if (percentComplete >= 100) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            }
+        });
+
+        xhr.onload = () => {
+            alert(xhr.responseText);
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressBar.setAttribute('aria-valuenow', '0');
+            location.reload();
+        };
+
+        xhr.onerror = () => {
+            alert('Could not upload file to server');
+        };
+
+        const formData = new FormData();
+        formData.append('file', file);
+        xhr.send(formData);
+    }
+});
+
+// Handle delete button click
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const projectName = this.getAttribute('data-project-name');
+            if (confirm(`Project:\n\n${projectName}\n\nAre you sure to delete ?`)) {
+                deleteTranscript(projectName);
+            }
+        });
+    });
+
+    function deleteTranscript(projectName) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', `{{ url_for("api_project_delete", project_name="") }}/${projectName}`, true);
+        xhr.onload = () => {
+            alert(xhr.responseText);
+            location.reload();
+        };
+        xhr.onerror = () => {
+            alert('Could not delete transcript');
+        };
+        xhr.send();
+    }
+});
+</script>
+
+{% endblock %}

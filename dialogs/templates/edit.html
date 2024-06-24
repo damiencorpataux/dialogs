@@ -1,0 +1,592 @@
+{% extends "html" %}
+
+{% block content %}
+
+<!-- Page header -->
+<style>
+@media (max-width: 992px) {
+    #project_header_title {
+        max-height: 4rlh;
+        overflow: scroll;
+    }
+}
+</style>
+<div id="project_header_title" class="mb-3 mb-lg-4">
+    <h2 class="d-inline">
+        <i class="text-secondary pe-auto me-2" data-feather="film"></i>
+        {{ project.name }}
+    </h2>
+    <span class="small text-secondary ms-3">
+        &mdash;&nbsp;<strong>Metadata:</strong> {{ project.__dict__ }}
+    </span>
+</div>
+<!-- Transcript timeline
+     FIXME: Must be below video when breakpoint < lg -->
+<style>
+    #transcript_timeline {
+        position: relative;
+        background-color: #333;
+        height: 20px;
+        width: 100%;
+        user-select: none;  /* prevent selecting text while dragging */
+    };
+</style>
+<div id="transcript_timeline" class="mb-2 mb-lg-4"></div>
+
+<div class="d-flex flex-column flex-lg-row gap-1 gap-lg-5">
+    <!-- Video player -->
+    <div id="leftpane" class="col-lg-4">
+        <div class="d-flex flex-column gap-5">
+            <div class="text-center">
+                <video id="player" class="mw-100" controls>
+                    <source src={{ url_for('api_project_video', project_name=project.name) }} type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="d-none d-lg-block">
+                <h5>Files</h5>
+                <div id="filelist" class="small ms-2"></div>
+            </div>
+            <div class="d-none d-lg-block">
+                <h5>Activity</h5>
+                <style>
+                    dialogs-activity::part(line) {
+                        padding-bottom: .75lh;
+                    }
+                    /* dialogs-activity::part(line):first-of-type,  /* FIXME: Selecting first part does not work */
+                    dialogs-activity:hover {
+                        color: var(--bs-secondary-text-emphasis);
+                    }
+                </style>
+                <div id="log" class="small text-secondary font-monospace ms-2"><dialogs-activity reverse project="{{ project.name }}" api="{{ url_for('ui', _external=True) + '/api' }}"></dialogs-activity></div>
+            </div>
+        </div>
+    </div>
+    <!-- Transcript table -->
+    <div class="flex-grow-1">
+        <div class="d-flex gap-2 align-items-baseline">
+            <i class="d-none d-lg-inline text-secondary" data-feather="align-left"></i>
+            <h3 class="d-none d-lg-inline">
+                Transcript
+            </h3>
+            <div title="Current time" class="ms-auto text-muted small">
+                <i class="text-secondary" width="16" data-feather="clock"></i>
+                <span id="time_current">0</span> s.
+            </div>
+            <div class="ms-auto text-muted small">
+                <span class="me-2">
+                    Lengths:
+                </span>
+                <span class="me-2" title="Total transcript time">
+                    <i class="text-secondary" width="16" data-feather="align-left"></i>
+                    <span id="time_total_transcript">?</span>
+                </span>
+                <span class="ms-auto" title="Total video time">
+                    <i class="text-secondary" width="16" data-feather="video"></i>
+                    <span id="time_total_video">?</span> s.
+                </span>
+            </div>
+        </div>
+        <div id="transcript_table"></div>
+    </div>
+</div>
+
+<!-- UX Logic -->
+<script>
+    document.addEventListener('DOMContentLoaded', init);
+
+    // Reference UI DOM elements
+    const ui = {};  // TODO: split into ui.dom & ui.data
+    ui.segments_by_id = null;  // set in cache_transcript()
+    ui.transcript_table = document.getElementById('transcript_table');
+    ui.segments_dom_table = null;  // set in display_table()
+    ui.transcript_timeline = document.getElementById('transcript_timeline');
+    ui.segments_dom_timeline = null;  // set in display_timeline()
+    ui.transcript_timeline_cursor = null;  // set in display_timeline()
+    ui.transcript_timeline_totalduration = null;  // set in display_timeline()
+    ui.transcript_time_total_dom = document.getElementById('time_total_transcript');
+    ui.player = document.getElementById('player');
+    ui.player_time_dom = document.getElementById('time_current');
+    ui.player_time_total_dom = document.getElementById('time_total_video');
+    ui.filelist_dom = document.getElementById('filelist');
+    ui.activity_dom = document.querySelector('dialogs-activity').parentElement
+
+    // Initialize UX
+    function init() {
+        get_transcript().then(transcript => {
+            display_transcript(transcript);
+        }).catch(e => {
+            ui.transcript_table.innerHTML = `
+                <p class="m-3 text-muted">
+                    Transcript not (yet) ready, Please watch the project activity.
+                    Then, reload the page.
+                </p>
+            `;
+        });
+        display_filelist();
+        setup_player_sync();
+        setup_keyboard_shortcuts();
+        // Handle dynamic table height
+        document.addEventListener('DOMContentLoaded', adjust_dom_heights);
+        window.addEventListener('resize', adjust_dom_heights);
+        ui.activity_dom.addEventListener('loaded', adjust_dom_heights);
+        // Confirm page exit
+        window.onbeforeunload = () => is_editing() ? 'Are you sure you want to quit ?' : null;;
+    }
+    ui.player.addEventListener('loadeddata', e => {
+        ui.player_time_total_dom.innerText = format_time(ui.player.duration)
+    });
+
+    // To be called everytime transcript changes
+    function cache_transcript(transcript) {
+        ui.segments_by_id = {};
+        for (const segment of transcript) {
+            ui.segments_by_id[segment.id] = segment;
+        }
+        ui.segments_sorted = Object.values(ui.segments_by_id).sort((a, b) => a.start - b.start);  // array of segments sorted by start time
+        ui.transcript_time_total_dom.innerText = format_time(
+            ui.segments_sorted[ui.segments_sorted.length - 1].end
+        );
+    }
+
+    // Fetch transcript from server
+    async function get_transcript() {
+        try {
+            const project_url = "{{ url_for('api_project_transcript', project_name=project.name) }}";
+            const response = await fetch(project_url);
+            const transcript = await response.json();
+            cache_transcript(transcript);
+            return transcript;
+        } catch (e) {
+            console.error('XHR Error:', e);
+            cache_transcript([]);
+            return []  // FIXME: Handle xhr errors at a higher, factorized level
+        }
+    }
+
+    // Post transcript on server
+    async function post_transcript(new_transcript) {
+        try {
+            const project_url = "{{ url_for('api_project_transcript_post', project_name=project.name) }}";
+            const response = await fetch(project_url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(new_transcript)
+            });
+            const transcript = await response.json();
+            cache_transcript(transcript);
+            return transcript;
+        } catch (e) {
+            console.error('XHR Error:', e);
+            return []  // FIXME: Handle xhr errors at a higher, factorized level
+        }
+    }
+
+    // User function to keep up-to-date the transcript table and timeline
+    function display_transcript(transcript) {
+        display_table(transcript);
+        display_timeline(transcript);
+    }
+
+    // Populate #transcript_table with a table containing the given transcript
+    function display_table(transcript) {
+        let html = `
+            <table class="table table-stripped table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th _style="position:sticky;top:0">id</th>
+                        <th _style="position:sticky;top:0">Start</th>
+                        <th _style="position:sticky;top:0">End</th>
+                        <th _style="position:sticky;top:0">Text</th>
+                    </tr>
+                </thead>
+            `;
+        for (const segment of transcript) {
+            html += `
+                <tr data-id="${segment.id}" title="Double-click to edit">
+                    <td data-type="id" class="text-secondary">${segment.id}</td>
+                    <td data-type="start">${format_time(segment.start)}</td>
+                    <td data-type="end">${format_time(segment.end)}</td>
+                    <td data-type="text">${segment.text}</td>
+                </tr>`;
+        }
+        html += '</table>';
+        ui.transcript_table.innerHTML = html;
+
+        for (const tr of document.querySelectorAll('#transcript_table tr[data-id]')) {
+            tr.style.cursor = 'pointer';
+            tr.addEventListener('click', e => {
+                if (!tr.hasAttribute('contenteditable') || 'false' == tr.getAttribute('contenteditable')) {
+                    const segment = ui.segments_by_id[tr.getAttribute('data-id')];
+                    ui.player.currentTime = segment.start;
+                }
+            });
+        }
+        // Store DOM elements for UX logic
+        ui.segments_dom_table = document.querySelectorAll('#transcript_table tbody tr');
+        // Setup UX logic
+        adjust_dom_heights();
+        setup_editing();
+    }
+
+    // Display timeline
+    function display_timeline(transcript) {
+        ui.transcript_timeline.innerHTML = ''; // Clear any existing content
+
+        const totalDuration = transcript[transcript.length - 1]?.end;
+        ui.transcript_timeline_totalduration = totalDuration;  // Store total duration globally
+
+        transcript.forEach(segment => {
+            const segmentDiv = document.createElement('div');
+            segmentDiv.className = 'segment';
+            segmentDiv.dataset.id = segment.id;  // Add segment ID for reference
+            segmentDiv.style.position = 'absolute';  // TODO: togglable between absolute and relative (expand)
+            segmentDiv.style.backgroundColor = 'var(--bs-secondary-color)';
+            segmentDiv.style.height = '20px';
+            segmentDiv.style.borderRight = '1px dotted black';
+            segmentDiv.style.left = (segment.start / totalDuration * 100) + '%';
+            segmentDiv.style.width = ((segment.end - segment.start) / totalDuration * 100) + '%';
+            segmentDiv.style.color = 'black';
+            segmentDiv.style.fontSize = '14px';
+            segmentDiv.style.paddingLeft = '3px';
+            segmentDiv.innerHTML = `<strong>${segment.id}</strong>`;
+            segmentDiv.title = `Segment ${segment.id}\n🕓 ${format_time(segment.start)} ➜ ${format_time(segment.end)} s.\n\n${segment.text}\n `;
+            segmentDiv.style.cursor = 'pointer';
+            transcript_timeline.appendChild(segmentDiv);
+            // Handle click on segment to set player currentTime (desktop & mobile)
+            segmentDiv.addEventListener('click', e => ui.player.currentTime = segment.start);
+            segmentDiv.addEventListener('touchstart', e => ui.player.currentTime = segment.start);
+        });
+        // Add the cursor line to the timeline
+        const cursorLine = document.createElement('div');
+        cursorLine.id = 'cursor_line';
+        cursorLine.style.position = 'absolute';
+        cursorLine.style.backgroundColor = 'red';
+        cursorLine.style.width = '2px';
+        cursorLine.style.height = '200%';
+        cursorLine.style.top = '-50%';
+        cursorLine.style.left = '0';
+        transcript_timeline.appendChild(cursorLine);
+        // Store DOM elements for UX logic
+        ui.transcript_timeline_cursor = document.getElementById('cursor_line');
+        ui.segments_dom_timeline = document.querySelectorAll('#transcript_timeline .segment');
+        // Setup UX logic
+        setup_timeline_cursor_drag();
+    }
+
+    // Display file list
+    function display_filelist() {
+        const project_url = "{{ url_for('api_project_files', project_name=project.name) }}";
+        fetch(project_url).then(
+            response => response.json()
+        ).then(filelist => {
+            let html = ''
+            for (filename of filelist) {
+                html += `
+                    <span class="text-nowrap me-2">
+                        <i class="bi bi-file-earmark text-secondary"></i>
+                        <span class="text-muted">${filename}</span>
+                    </span>
+                `;
+            }
+            if (!html) html = '<div class="ms-2 text-muted">No file found</div>'
+            ui.filelist_dom.innerHTML = html;
+        }).finally(() => {
+            adjust_dom_heights();
+        });
+    }
+
+    // Helper to factorize format seconds
+    function format_time(seconds) {
+        try {
+            return seconds.toFixed(2);
+        } catch (e) {
+            console.warn('Could not format time');
+            return seconds
+        }
+    }
+
+    // Helper to factorize return true if page is in edit mode
+    function is_editing() {
+        return document.querySelectorAll('[contenteditable=true]').length;
+    }
+
+    // Sync player time with table/timeline display
+    function setup_player_sync() {
+        ui.player.addEventListener('timeupdate', function() {
+            // Update current time of the player
+            ui.player_time_dom.innerText = format_time(this.currentTime);
+            // Update the position of the cursor line in timeline
+            const totalDuration = ui.transcript_timeline_totalduration;
+            const currentTimePercent = Math.min(1, ui.player.currentTime / totalDuration) * 100;  // The end time of the timeline is the last segment end time.
+            ui.transcript_timeline_cursor.style.left = currentTimePercent + '%';
+            // Update segments highlighting in transcript table
+            ui.segments_dom_table.forEach(row => {
+                const segmentId = row.getAttribute('data-id');
+                const segment = ui.segments_by_id[segmentId];
+                if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
+                    if (!row.classList.contains('table-primary')) {
+                        // row.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                        scrollRowIntoView(row);
+                    }
+                    row.classList.add('table-primary');
+                } else {
+                    row.classList.remove('table-primary');
+                }
+            });
+            ui.segments_dom_timeline.forEach(div => {
+                const segmentId = div.dataset.id;
+                const segment = ui.segments_by_id[segmentId];
+                if (segment && this.currentTime >= segment.start && this.currentTime < segment.end) {
+                    div.style.backgroundColor = 'var(--bs-info)';
+                } else {
+                    div.style.backgroundColor = 'var(--bs-secondary-color)';
+                }
+            });
+        });
+        // Helper function to scroll row into visual center of the table
+        function scrollRowIntoView(row) {
+            const tableRect = ui.transcript_table.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            // Calculate the center position of the table and row
+            const tableCenterY = tableRect.top + tableRect.height / 2;
+            const rowCenterY = rowRect.top + rowRect.height / 2;
+            // Calculate the scroll position to center the row
+            const scrollY = rowCenterY - tableCenterY + ui.transcript_table.scrollTop;
+            // Smooth scroll to the calculated position
+            ui.transcript_table.scrollTo({
+                top: scrollY,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // Setup segments edition handling
+    function setup_editing() {
+        // Generate a valid transcript object from DOM table contents
+        function transcript_from_table() {
+            transcript = [];
+            for (const row of ui.segments_dom_table) {
+                transcript.push({
+                    id: parseFloat(row.querySelector('[data-type=id]').innerText),
+                    start: parseFloat(row.querySelector('[data-type=start]').innerText),
+                    end: parseFloat(row.querySelector('[data-type=end]').innerText),
+                    text: row.querySelector('[data-type=text]').innerText
+                });
+            }
+            return transcript;
+        }
+        // Handle trigger edit mode for row
+        for (const tr of ui.segments_dom_table) {
+            tr.addEventListener('dblclick', function() {
+                tr.setAttribute('contenteditable', true);
+                tr.focus();
+            });
+            tr.addEventListener('blur', function() {
+                const save = confirm('Do you want to save changes ?');
+                if (save) {
+                    const actual_transcript = transcript_from_table();
+                    post_transcript(actual_transcript).then(transcript => {
+                        display_transcript(transcript);
+                    });
+                }
+                tr.setAttribute('contenteditable', false);
+            });
+            // Handle keypresses during edit
+            tr.addEventListener('keydown', function(e) {
+                if (e.key == 'Escape') {
+                    tr.blur();
+                }
+                if (e.key == 'Enter') {
+                    tr.blur();
+                }
+            });
+        }
+    }
+
+    // Setup timeline cursor dragging support
+    function setup_timeline_cursor_drag() {
+        let isDragging = false;
+        let cursorOffsetX = 0;
+        // Function to handle the start of dragging
+        function startDragging(e) {
+            e.preventDefault();
+            isDragging = true;
+            ui.transcript_timeline_cursor.style.cursor = 'grabbing';
+        }
+        // Function to handle the dragging
+        function dragging(e) {
+            if (isDragging) {
+                const clientX = (e.clientX !== undefined) ? e.clientX : e.touches[0].clientX;
+                // Calculate new position for cursor
+                const timelineRect = ui.transcript_timeline.getBoundingClientRect();
+                let newX = clientX - timelineRect.left;
+                newX = Math.max(0, Math.min(newX, timelineRect.width)); // Clamp within timeline bounds
+                // Update cursor position
+                ui.transcript_timeline_cursor.style.left = newX + 'px';
+                // Update player time in real-time
+                const totalDuration = ui.transcript_timeline_totalduration;
+                const newTime = (newX / timelineRect.width) * totalDuration;
+                ui.player_time_dom.innerText = format_time(newTime);
+                // Set player currentTime to the position of the cursor
+                ui.player.currentTime = newTime;
+            }
+        }
+        // Function to handle the end of dragging
+        function stopDragging() {
+            if (isDragging) {
+                isDragging = false;
+                ui.transcript_timeline_cursor.style.cursor = 'grab';
+            }
+        }
+        // Mouse events
+        ui.transcript_timeline_cursor.addEventListener('mouseover', () => {
+            ui.transcript_timeline_cursor.style.cursor = 'grab';
+        });
+        ui.transcript_timeline_cursor.addEventListener('mouseout', () => {
+            ui.transcript_timeline_cursor.style.cursor = 'default';
+        });
+        ui.transcript_timeline_cursor.addEventListener('mousedown', startDragging);
+        document.addEventListener('mousemove', dragging);
+        document.addEventListener('mouseup', stopDragging);  // FIXME: fails when mouseup on ui.player !        // Touch events
+        ui.transcript_timeline.addEventListener('touchstart', startDragging);
+        document.addEventListener('touchmove', dragging);
+        document.addEventListener('touchend', stopDragging);
+    }
+
+    // Setup global keyboard shortcuts handling
+    function setup_keyboard_shortcuts() {
+        document.addEventListener('keydown', function(e) {
+            const editing = document.querySelectorAll('[contenteditable=true]');
+            if (is_editing()) {  // Disable global shortcuts if editing
+                return;
+            }
+            if (e.key == ' ') {
+                e.preventDefault();
+                if (ui.player.paused) ui.player.play();
+                else ui.player.pause();
+            }
+            if (e.key == 'Home') {  // Skip to first segment
+                play_skip_segment('first');
+            }
+            if (e.key == 'End') {  // Skip to last segment
+                play_skip_segment('last');
+            }
+            if (e.key.startsWith('Arrow')) {
+                if (e.key == 'ArrowRight') {  // Skip to next segment start time
+                    play_skip_segment('next');
+                }
+                if (e.key == 'ArrowLeft') {  // Skip to previous segment start time
+                    play_skip_segment('previous');
+                }
+            }
+        });
+    }
+
+    // Skip player to previous/next segment
+    function play_skip_segment(direction) {
+        direction = direction || 'next';
+        const currentTime = ui.player.currentTime;
+        // Find next/previous segment
+        let targetTime = null;
+        let nearestSegment = null;
+        if (direction === 'next') {
+            for (const segment of ui.segments_sorted) {
+                if (currentTime < segment.start) {
+                    nearestSegment = segment;
+                    break;
+                }
+            }
+        }
+        if (direction === 'previous') {
+            for (let i = ui.segments_sorted.length - 1; i >= 0; i--) {
+                const segment = ui.segments_sorted[i];
+                if (currentTime > segment.start) {
+                    nearestSegment = segment;
+                    break;
+                }
+            }
+        }
+        if (direction === 'first') {
+            nearestSegment = ui.segments_sorted[0];
+        }
+        if (direction === 'last') {
+            nearestSegment = ui.segments_sorted[ui.segments_sorted.length - 1];
+        }
+        // Skip to segment start time (if applicable)
+        if (nearestSegment) targetTime = nearestSegment.start;
+        if (targetTime !== null) ui.player.currentTime = targetTime;
+    }
+
+    // Resize table and video to fit page height
+    function adjust_dom_heights() {
+        const paddingBottom = 10;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        // Adjust video height, only when viewport is below lg breakpoint (992px)
+        if (viewportWidth > 992) {
+            const videoTopPosition = ui.player.getBoundingClientRect().top;
+            ui.player.style.maxHeight = (viewportHeight - videoTopPosition - paddingBottom) + 'px';
+        } else {
+            ui.player.style.maxHeight = '180px'; // Reset to default when above lg breakpoint
+        }
+        // Adjust transcript table height
+        const tableTopPosition = ui.transcript_table.getBoundingClientRect().top;
+        ui.transcript_table.style.overflow = 'scroll';
+        ui.transcript_table.style.height = (viewportHeight - tableTopPosition - paddingBottom) + 'px';
+        // Adjust metadata div height, only when viewport is below lg breakpoint (992px)
+        const leftpane_dom = document.getElementById('leftpane');
+        if (viewportWidth > 992) {
+            const topPosition = leftpane_dom.getBoundingClientRect().top;
+            leftpane_dom.style.overflow = 'hidden';
+            leftpane_dom.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
+        } else {
+            leftpane_dom.style.height = 'auto';
+        }
+        // Adjust activity height
+        const activity = ui.activity_dom;
+        if (viewportWidth > 992) {
+            const topPosition = activity.getBoundingClientRect().top;
+            activity.style.overflow = 'scroll';
+            activity.style.height = (viewportHeight - topPosition - paddingBottom) + 'px';
+        } else {
+            activity.style.height = 'auto';
+        }
+    }
+
+    // Translation !
+    async function translate(to_language) {
+        to_language = to_language || 'english';
+        const url_base = "{{ url_for('ui', _external=True) }}/api/translate";
+        const table = ui.transcript_table
+        const rows = table.querySelectorAll('tbody tr');
+        for (const row of rows) {
+            const cell = row.cells[3];
+            const text = cell.innerText;
+            const url = `${url_base}/${to_language}/${encodeURIComponent(text)}`;
+            console.info('Translating...', url)
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const translatedText = await response.text();
+                    console.log(translatedText)
+                    cell.innerText = translatedText;
+                    cell.style.backgroundColor = 'darkgrey'
+                } else {
+                    console.error(`Failed to translate text: ${text}`);
+                }
+            } catch (error) {
+                console.error(`Error during translation request for text: ${text}`, error);
+            }
+        }
+    }
+    document.querySelector('[data-feather=align-left]').parentElement.addEventListener('click', () => {
+        const to_language = prompt('Translate to wchich language ?\n\nEg. french, english, spanish, etc.')
+        console.log('Launch translation');
+        translate(to_language).then((x) => console.log('translated', x));
+    });
+</script>
+
+{% endblock %}
