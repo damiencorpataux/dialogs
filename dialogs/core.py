@@ -131,7 +131,7 @@ class Project:
             #     print("arguments:", arguments)
             @ffmpeg_process.on("progress")
             def on_progress(progress: ffmpeg.Progress):
-                message = ('Transcoding: %s', progress)
+                message = (f'Transcoding: {progress}')
                 print(message)
                 # self.log.debug(*message)  # TODO: Too verbose, limit loggin rate, use eg: round(progress.seconds/10) % 10
             ffmpeg_process.execute()
