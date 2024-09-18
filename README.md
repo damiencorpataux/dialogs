@@ -1,5 +1,10 @@
+A web-app for video transcription and translation. Using whisper, ollama, flask, python and web-standards. It's a POC.
+[![Dialogs demo](https://img.youtube.com/vi/DEJq_zsyxpQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=DEJq_zsyxpQ)
+
+
 Quickstart
 -
+
 Clone code
 ```sh
 git clone ...
