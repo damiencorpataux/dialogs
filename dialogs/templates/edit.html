@@ -69,6 +69,12 @@
             <h3 class="d-none d-lg-inline">
                 Transcript
             </h3>
+            <span id="download-transcript" title="Download transcript">
+                <i class="text-secondary" width="16" data-feather="download"></i>
+            </span>
+            <span id="translate-transcript" title="Translate transcript">
+                <i class="text-secondary" width="16" data-feather="globe"></i>
+            </span>
             <div title="Current time" class="ms-auto text-muted small">
                 <i class="text-secondary" width="16" data-feather="clock"></i>
                 <span id="time_current">0</span> s.
@@ -110,6 +116,8 @@
     ui.player_time_total_dom = document.getElementById('time_total_video');
     ui.filelist_dom = document.getElementById('filelist');
     ui.activity_dom = document.querySelector('dialogs-activity').parentElement
+    ui.download_dom = document.getElementById('download-transcript');
+    ui.translate_dom = document.getElementById('translate-transcript');
 
     // Initialize UX
     function init() {
@@ -183,6 +191,31 @@
             return []  // FIXME: Handle xhr errors at a higher, factorized level
         }
     }
+
+    function download_transcript() {
+        const transcript = transcript_from_table();
+        let content = '';
+        for (const [index, line] of transcript.entries()) {
+            const time_string = {};
+            for (const [time_index, time] of [line.start, line.end].entries()) {
+                const date = new Date(0);
+                date.setMilliseconds(time * 1000);
+                time_string[time_index] = date.toJSON().substring(11, 23);
+            }
+            content += index+1 + '\n'
+            content += `${time_string[0]} --> ${time_string[1]}` + '\n'
+            content += line.text + '\n'
+            content += '\n'
+        }
+        // Perform download
+        const a = document.createElement('a') // Create "a" element
+        const blob = new Blob([content], {type: 'text/plain'}) // Create a blob (file-like object)
+        const url = URL.createObjectURL(blob) // Create an object URL from blob
+        a.setAttribute('href', url) // Set "a" element link
+        a.setAttribute('download', 'dialogs-subtitles.srt') // Set download filename
+        a.click() // Start downloading
+    }
+    ui.download_dom.addEventListener('click', download_transcript);
 
     // User function to keep up-to-date the transcript table and timeline
     function display_transcript(transcript) {
@@ -313,6 +346,20 @@
         return document.querySelectorAll('[contenteditable=true]').length;
     }
 
+    // Generate a valid transcript object from DOM table contents
+    function transcript_from_table() {
+        transcript = [];
+        for (const row of ui.segments_dom_table) {
+            transcript.push({
+                id: parseFloat(row.querySelector('[data-type=id]').innerText),
+                start: parseFloat(row.querySelector('[data-type=start]').innerText),
+                end: parseFloat(row.querySelector('[data-type=end]').innerText),
+                text: row.querySelector('[data-type=text]').innerText
+            });
+        }
+        return transcript;
+    }
+
     // Sync player time with table/timeline display
     function setup_player_sync() {
         ui.player.addEventListener('timeupdate', function() {
@@ -365,19 +412,6 @@
 
     // Setup segments edition handling
     function setup_editing() {
-        // Generate a valid transcript object from DOM table contents
-        function transcript_from_table() {
-            transcript = [];
-            for (const row of ui.segments_dom_table) {
-                transcript.push({
-                    id: parseFloat(row.querySelector('[data-type=id]').innerText),
-                    start: parseFloat(row.querySelector('[data-type=start]').innerText),
-                    end: parseFloat(row.querySelector('[data-type=end]').innerText),
-                    text: row.querySelector('[data-type=text]').innerText
-                });
-            }
-            return transcript;
-        }
         // Handle trigger edit mode for row
         for (const tr of ui.segments_dom_table) {
             tr.addEventListener('dblclick', function() {
@@ -582,9 +616,10 @@
             }
         }
     }
-    document.querySelector('[data-feather=align-left]').parentElement.addEventListener('click', () => {
+    ui.translate_dom.addEventListener('click', () => {
         const to_language = prompt('Translate to wchich language ?\n\nEg. french, english, spanish, etc.')
-        console.log('Launch translation');
+        if (!to_language) return;
+        console.log('Launch translation to', to_language);
         translate(to_language).then((x) => console.log('translated', x));
     });
 </script>
